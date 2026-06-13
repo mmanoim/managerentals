@@ -74,9 +74,9 @@ export default function PaymentsFilter({ properties, units }: Props) {
       </select>
 
       <select value={unitId} onChange={e => handleUnit(e.target.value)} className={sel}
-        disabled={availableUnits.length === 0}>
-        <option value="">All units</option>
-        {availableUnits.map(u => (
+        disabled={!propertyId}>
+        <option value="">{propertyId ? 'All units' : 'Select property first'}</option>
+        {propertyId && availableUnits.map(u => (
           <option key={u.id} value={u.id}>{u.unit_label}</option>
         ))}
       </select>
