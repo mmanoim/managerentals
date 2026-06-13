@@ -46,3 +46,35 @@ export async function deleteTransaction(accountId: string, txId: string) {
   revalidatePath(`/accounts/${accountId}`)
   redirect(`/accounts/${accountId}`)
 }
+
+interface ImportRow { date: string; description: string; amount: number }
+
+export async function importTransactions(
+  accountId: string,
+  rows: ImportRow[],
+  batchId: string,
+): Promise<{ imported: number } | { error: string }> {
+  const supabase = await createClient()
+  const inserts = rows.map(r => ({
+    account_id: accountId,
+    date: r.date,
+    description: r.description,
+    amount: r.amount,
+    source: 'csv' as const,
+    import_batch_id: batchId,
+  }))
+  const { error } = await supabase.from('account_transactions').insert(inserts)
+  if (error) return { error: error.message }
+  revalidatePath(`/accounts/${accountId}`)
+  return { imported: inserts.length }
+}
+
+export async function undoImport(accountId: string, batchId: string): Promise<void> {
+  const supabase = await createClient()
+  await supabase
+    .from('account_transactions')
+    .delete()
+    .eq('account_id', accountId)
+    .eq('import_batch_id', batchId)
+  revalidatePath(`/accounts/${accountId}`)
+}
