@@ -93,7 +93,10 @@ export default async function AccountsPage() {
                     {/* Name + meta */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-medium text-slate-900">{account.name}</span>
+                        <Link href={`/accounts/${account.id}`}
+                          className="font-medium text-slate-900 hover:text-indigo-600 transition-colors">
+                          {account.name}
+                        </Link>
                         {account.last_four && (
                           <span className="text-xs text-slate-400">•••• {account.last_four}</span>
                         )}
