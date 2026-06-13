@@ -23,6 +23,28 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
     .eq('archived', false)
     .order('unit_label')
 
+  const unitIds = (units ?? []).map(u => u.id)
+  const { data: leases } = unitIds.length
+    ? await supabase
+        .from('leases')
+        .select(`
+          id, unit_id, rent_amount, lease_start, lease_end, renewal_date, status,
+          lease_tenants(is_primary, tenant:tenants(first_name, last_name))
+        `)
+        .in('unit_id', unitIds)
+        .eq('status', 'active')
+    : { data: [] }
+
+  const leaseByUnit: Record<string, any> = {}
+  for (const lease of leases ?? []) {
+    leaseByUnit[lease.unit_id] = lease
+  }
+
+  const unitsWithLeases = (units ?? []).map(u => ({
+    ...u,
+    active_lease: leaseByUnit[u.id] ?? null,
+  }))
+
   return (
     <div className="max-w-4xl">
       <div className="mb-6 flex items-start justify-between">
@@ -44,7 +66,6 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         </Link>
       </div>
 
-      {/* Property info */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-8">
         {property.purchase_date && (
           <InfoCard label="Purchase date" value={new Date(property.purchase_date).toLocaleDateString()} />
@@ -61,10 +82,9 @@ export default async function PropertyPage({ params }: { params: Promise<{ id: s
         </div>
       )}
 
-      {/* Units section */}
       <div>
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Units</h2>
-        <UnitList units={units ?? []} propertyId={id} />
+        <UnitList units={unitsWithLeases} propertyId={id} />
       </div>
     </div>
   )
