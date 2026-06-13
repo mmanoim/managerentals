@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import PropertyForm from '@/components/PropertyForm'
+import ArchiveButton from '@/components/ArchiveButton'
 import { updateProperty, archiveProperty } from '@/app/actions/properties'
 
 export default async function EditPropertyPage({ params }: { params: Promise<{ id: string }> }) {
@@ -32,15 +33,7 @@ export default async function EditPropertyPage({ params }: { params: Promise<{ i
       </div>
       <PropertyForm action={updateWithId} defaultValues={property} />
       <div className="mt-6 pt-6 border-t border-slate-200">
-        <form action={archiveWithId}>
-          <button
-            type="submit"
-            className="text-sm text-red-600 hover:text-red-700 font-medium"
-            onClick={(e) => { if (!confirm('Archive this property?')) e.preventDefault() }}
-          >
-            Archive property
-          </button>
-        </form>
+        <ArchiveButton action={archiveWithId} label="property" />
       </div>
     </div>
   )
