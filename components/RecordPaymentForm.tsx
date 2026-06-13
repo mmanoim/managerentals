@@ -4,35 +4,25 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const METHODS = [
-  { value: 'check', label: 'Check', ref: 'Check #' },
-  { value: 'cash', label: 'Cash', ref: null },
+  { value: 'check',   label: 'Check',    ref: 'Check #' },
+  { value: 'cash',    label: 'Cash',     ref: null },
   { value: 'cashapp', label: 'Cash App', ref: 'Transaction ref' },
-  { value: 'zelle', label: 'Zelle', ref: 'Transaction ref' },
-  { value: 'venmo', label: 'Venmo', ref: 'Transaction ref' },
+  { value: 'zelle',   label: 'Zelle',    ref: 'Transaction ref' },
+  { value: 'venmo',   label: 'Venmo',    ref: 'Transaction ref' },
 ]
 
-interface Part {
-  key: string
-  method: string
-  amount: string
-  reference: string
-}
+interface Part { key: string; method: string; amount: string; reference: string }
 
 function today() {
   return new Date().toISOString().split('T')[0]
 }
 
-function currentMonth() {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
 interface Props {
   action: (formData: FormData) => Promise<{ error: string } | void>
-  rentAmount: number
+  balanceDue: number
 }
 
-export default function RecordPaymentForm({ action, rentAmount }: Props) {
+export default function RecordPaymentForm({ action, balanceDue }: Props) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -40,8 +30,8 @@ export default function RecordPaymentForm({ action, rentAmount }: Props) {
     { key: crypto.randomUUID(), method: '', amount: '', reference: '' },
   ])
 
-  const total = parts.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0)
-  const diff = total - rentAmount
+  const total = parts.reduce((s, p) => s + (parseFloat(p.amount) || 0), 0)
+  const remaining = balanceDue - total
 
   function addPart() {
     setParts(prev => [...prev, { key: crypto.randomUUID(), method: '', amount: '', reference: '' }])
@@ -51,7 +41,7 @@ export default function RecordPaymentForm({ action, rentAmount }: Props) {
     setParts(prev => prev.filter(p => p.key !== key))
   }
 
-  function updatePart(key: string, field: keyof Part, value: string) {
+  function update(key: string, field: keyof Part, value: string) {
     setParts(prev => prev.map(p => p.key === key ? { ...p, [field]: value } : p))
   }
 
@@ -68,18 +58,22 @@ export default function RecordPaymentForm({ action, rentAmount }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="bg-white border border-slate-200 rounded-2xl p-6 space-y-6">
-      {/* Period & date */}
+      {/* Date */}
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Payment for *</label>
-          <input name="period_month" type="month" required
-            defaultValue={currentMonth()} className={inp} />
-        </div>
-        <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Date received *</label>
-          <input name="received_on" type="date" required
-            defaultValue={today()} className={inp} />
+          <input name="entry_date" type="date" required defaultValue={today()} className={inp} />
         </div>
+        {balanceDue > 0 && (
+          <div className="flex items-end pb-0.5">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-2.5 w-full">
+              <p className="text-xs text-amber-600 font-medium">Balance due</p>
+              <p className="text-lg font-bold text-amber-700">
+                ${balanceDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Payment breakdown */}
@@ -97,13 +91,9 @@ export default function RecordPaymentForm({ action, rentAmount }: Props) {
             const methodDef = METHODS.find(m => m.value === part.method)
             return (
               <div key={part.key} className="flex gap-2 items-start">
-                <select
-                  name="part_method"
-                  value={part.method}
-                  onChange={e => updatePart(part.key, 'method', e.target.value)}
-                  required
-                  className={`${sel} w-36 flex-shrink-0`}
-                >
+                <select name="part_method" value={part.method}
+                  onChange={e => update(part.key, 'method', e.target.value)}
+                  required className={`${sel} w-36 flex-shrink-0`}>
                   <option value="">Method…</option>
                   {METHODS.map(m => (
                     <option key={m.value} value={m.value}>{m.label}</option>
@@ -112,28 +102,17 @@ export default function RecordPaymentForm({ action, rentAmount }: Props) {
 
                 <div className="relative w-32 flex-shrink-0">
                   <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-                  <input
-                    name="part_amount"
-                    type="number"
-                    step="0.01"
-                    required
-                    value={part.amount}
-                    onChange={e => updatePart(part.key, 'amount', e.target.value)}
-                    placeholder="0.00"
-                    className={`${inp} pl-7`}
-                  />
+                  <input name="part_amount" type="number" step="0.01" required
+                    value={part.amount} onChange={e => update(part.key, 'amount', e.target.value)}
+                    placeholder="0.00" className={`${inp} pl-7`} />
                 </div>
 
-                {methodDef?.ref !== null && (
-                  <input
-                    name="part_reference"
-                    value={part.reference}
-                    onChange={e => updatePart(part.key, 'reference', e.target.value)}
+                {methodDef?.ref !== null ? (
+                  <input name="part_reference" value={part.reference}
+                    onChange={e => update(part.key, 'reference', e.target.value)}
                     placeholder={methodDef?.ref ?? 'Reference (optional)'}
-                    className={`${inp} flex-1`}
-                  />
-                )}
-                {methodDef?.ref === null && (
+                    className={`${inp} flex-1`} />
+                ) : (
                   <input type="hidden" name="part_reference" value="" />
                 )}
 
@@ -150,25 +129,23 @@ export default function RecordPaymentForm({ action, rentAmount }: Props) {
           })}
         </div>
 
-        {/* Total */}
-        {parts.some(p => parseFloat(p.amount) > 0) && (
+        {/* Running total */}
+        {total > 0 && (
           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-600">Total received</span>
+            <span className="text-sm font-medium text-slate-600">This payment</span>
             <div className="text-right">
-              <span className={`text-base font-bold ${
-                diff === 0 ? 'text-green-600' : diff < 0 ? 'text-amber-600' : 'text-red-600'
-              }`}>
+              <span className="text-base font-bold text-slate-900">
                 ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </span>
-              <p className={`text-xs mt-0.5 ${
-                diff === 0 ? 'text-green-500' : diff < 0 ? 'text-amber-500' : 'text-red-500'
-              }`}>
-                {diff === 0
-                  ? 'Full payment'
-                  : diff < 0
-                  ? `$${Math.abs(diff).toLocaleString('en-US', { minimumFractionDigits: 2 })} short of $${rentAmount.toLocaleString()}`
-                  : `$${diff.toLocaleString('en-US', { minimumFractionDigits: 2 })} over rent`}
-              </p>
+              {balanceDue > 0 && (
+                <p className={`text-xs mt-0.5 ${
+                  remaining <= 0 ? 'text-green-500' : 'text-amber-500'
+                }`}>
+                  {remaining <= 0
+                    ? remaining === 0 ? 'Clears balance' : `$${Math.abs(remaining).toLocaleString('en-US', { minimumFractionDigits: 2 })} over balance`
+                    : `$${remaining.toLocaleString('en-US', { minimumFractionDigits: 2 })} still owing`}
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -177,9 +154,8 @@ export default function RecordPaymentForm({ action, rentAmount }: Props) {
       {/* Notes */}
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>
-        <textarea name="notes" rows={2}
-          className={`${inp} resize-none`}
-          placeholder="e.g. Received late, pending check clearance…" />
+        <textarea name="notes" rows={2} className={`${inp} resize-none`}
+          placeholder="e.g. Late payment, check pending clearance…" />
       </div>
 
       {error && (

@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import RecordPaymentForm from '@/components/RecordPaymentForm'
-import { createPayment } from '@/app/actions/payments'
+import { recordPayment } from '@/app/actions/payments'
 
 export default async function RecordPaymentPage({
   params,
@@ -12,20 +12,27 @@ export default async function RecordPaymentPage({
   const { id } = await params
   const supabase = await createClient()
 
-  const { data: lease } = await supabase
-    .from('leases')
-    .select(`
-      id, rent_amount,
-      unit:units(unit_label, property:properties(address))
-    `)
-    .eq('id', id)
-    .single()
+  const [{ data: lease }, { data: entries }] = await Promise.all([
+    supabase
+      .from('leases')
+      .select('id, rent_amount, unit:units(unit_label, property:properties(address))')
+      .eq('id', id)
+      .single(),
+    supabase
+      .from('lease_ledger_entries')
+      .select('type, amount')
+      .eq('lease_id', id),
+  ])
 
   if (!lease) notFound()
 
+  const balanceDue = (entries ?? []).reduce((sum: number, e: any) => {
+    return e.type === 'charge' ? sum + Number(e.amount) : sum - Number(e.amount)
+  }, 0)
+
   const unit = lease.unit as any
   const property = unit?.property as any
-  const action = createPayment.bind(null, id)
+  const action = recordPayment.bind(null, id)
 
   return (
     <div className="max-w-xl">
@@ -42,7 +49,7 @@ export default async function RecordPaymentPage({
           {property?.address} — {unit?.unit_label} · ${Number(lease.rent_amount).toLocaleString()}/mo
         </p>
       </div>
-      <RecordPaymentForm action={action} rentAmount={Number(lease.rent_amount)} />
+      <RecordPaymentForm action={action} balanceDue={Math.max(0, balanceDue)} />
     </div>
   )
 }

@@ -3,16 +3,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import LeaseForm from '@/components/LeaseForm'
 import { updateLease } from '@/app/actions/leases'
-import { deletePayment } from '@/app/actions/payments'
+import { deleteLedgerEntry } from '@/app/actions/payments'
 
 const METHOD_LABELS: Record<string, string> = {
-  check: 'Check',
-  cash: 'Cash',
-  cashapp: 'Cash App',
-  zelle: 'Zelle',
-  venmo: 'Venmo',
+  check: 'Check', cash: 'Cash', cashapp: 'Cash App', zelle: 'Zelle', venmo: 'Venmo',
 }
-
 const METHOD_COLORS: Record<string, string> = {
   check: 'bg-blue-100 text-blue-700',
   cash: 'bg-green-100 text-green-700',
@@ -20,18 +15,14 @@ const METHOD_COLORS: Record<string, string> = {
   zelle: 'bg-purple-100 text-purple-700',
   venmo: 'bg-sky-100 text-sky-700',
 }
-
-function formatPeriod(dateStr: string) {
-  const [year, month] = dateStr.split('-')
-  const months = ['January','February','March','April','May','June',
-                  'July','August','September','October','November','December']
-  return `${months[parseInt(month) - 1]} ${year}`
+const SUBTYPE_LABELS: Record<string, string> = {
+  rent: 'Rent', late_fee: 'Late fee', adjustment: 'Adjustment',
 }
 
-function fmt(date: string) {
-  return new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
-    month: 'short', day: 'numeric', year: 'numeric',
-  })
+function fmt(d: string) {
+  const [y, m, day] = d.split('-')
+  return new Date(Number(y), Number(m) - 1, Number(day))
+    .toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 export default async function EditLeasePage({
@@ -45,14 +36,10 @@ export default async function EditLeasePage({
   const { propertyId } = await searchParams
   const supabase = await createClient()
 
-  const [{ data: lease }, { data: tenants }, { data: payments }] = await Promise.all([
+  const [{ data: lease }, { data: tenants }, { data: rawEntries }] = await Promise.all([
     supabase
       .from('leases')
-      .select(`
-        *,
-        unit:units(id, unit_label, property:properties(id, address)),
-        lease_tenants(is_primary, tenant:tenants(id, first_name, last_name))
-      `)
+      .select(`*, unit:units(id, unit_label, property:properties(id, address)), lease_tenants(is_primary, tenant:tenants(id, first_name, last_name))`)
       .eq('id', id)
       .single(),
     supabase
@@ -61,10 +48,11 @@ export default async function EditLeasePage({
       .eq('archived', false)
       .order('last_name'),
     supabase
-      .from('lease_payments')
-      .select('id, period_month, received_on, notes, payment_parts(method, amount, reference)')
+      .from('lease_ledger_entries')
+      .select('id, type, subtype, description, amount, entry_date, created_at, ledger_payment_parts(method, amount, reference)')
       .eq('lease_id', id)
-      .order('period_month', { ascending: false }),
+      .order('entry_date', { ascending: true })
+      .order('created_at', { ascending: true }),
   ])
 
   if (!lease) notFound()
@@ -72,8 +60,16 @@ export default async function EditLeasePage({
   const unit = lease.unit as any
   const resolvedPropertyId = propertyId ?? unit?.property?.id
   const leaseTenants = (lease.lease_tenants as any[]) ?? []
-
   const action = updateLease.bind(null, id, resolvedPropertyId)
+
+  // Build ledger with running balance
+  let runningBalance = 0
+  const ledger = (rawEntries ?? []).map((e: any) => {
+    const delta = e.type === 'charge' ? Number(e.amount) : -Number(e.amount)
+    runningBalance += delta
+    return { ...e, runningBalance }
+  })
+  const currentBalance = runningBalance
 
   return (
     <div className="max-w-2xl">
@@ -113,76 +109,105 @@ export default async function EditLeasePage({
         }}
       />
 
-      {/* Payment history */}
+      {/* Ledger */}
       <div className="mt-10">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-slate-900">
-            Payments
-            {payments?.length ? (
-              <span className="ml-2 text-sm font-normal text-slate-400">{payments.length} recorded</span>
-            ) : null}
-          </h2>
-          <Link
-            href={`/leases/${id}/payments/new`}
-            className="text-sm font-medium text-indigo-600 hover:text-indigo-700 px-3 py-1.5 rounded-lg border border-indigo-200 hover:border-indigo-300 transition-colors"
-          >
-            + Record payment
-          </Link>
+        {/* Header: balance + actions */}
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-900">Ledger</h2>
+            {ledger.length > 0 && (
+              <div className="mt-1">
+                <span className="text-xs font-medium text-slate-500 uppercase tracking-wide">Balance due </span>
+                <span className={`text-xl font-bold ${
+                  currentBalance <= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                  ${Math.abs(currentBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                </span>
+                {currentBalance < 0 && (
+                  <span className="ml-1.5 text-xs text-green-500 font-medium">credit</span>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex gap-2 flex-shrink-0">
+            <Link href={`/leases/${id}/charges/new?type=rent`}
+              className="text-xs font-medium text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-colors">
+              + Rent charge
+            </Link>
+            <Link href={`/leases/${id}/charges/new?type=late_fee`}
+              className="text-xs font-medium text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-colors">
+              + Late fee
+            </Link>
+            <Link href={`/leases/${id}/payments/new`}
+              className="text-xs font-medium text-white px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors">
+              Record payment
+            </Link>
+          </div>
         </div>
 
-        {!payments?.length ? (
+        {ledger.length === 0 ? (
           <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-sm text-slate-400">
-            No payments recorded yet
+            No ledger entries yet — start by adding a rent charge
           </div>
         ) : (
           <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-            <table className="w-full">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Period</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Received</th>
-                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Breakdown</th>
-                  <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Total</th>
-                  <th className="px-5 py-3" />
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Date</th>
+                  <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Description</th>
+                  <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Charge</th>
+                  <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Payment</th>
+                  <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Balance</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {(payments as any[]).map((payment) => {
-                  const parts = (payment.payment_parts as any[]) ?? []
-                  const total = parts.reduce((s: number, p: any) => s + Number(p.amount), 0)
-                  const diff = total - Number(lease.rent_amount)
-                  const deleteAction = deletePayment.bind(null, payment.id, id)
+                {ledger.map((entry: any) => {
+                  const isCharge = entry.type === 'charge'
+                  const parts = (entry.ledger_payment_parts ?? []) as any[]
+                  const deleteAction = deleteLedgerEntry.bind(null, entry.id, id)
                   return (
-                    <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-3 text-sm font-medium text-slate-900">
-                        {formatPeriod(payment.period_month)}
-                      </td>
-                      <td className="px-5 py-3 text-sm text-slate-500">
-                        {fmt(payment.received_on)}
+                    <tr key={entry.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="px-5 py-3 text-slate-500 whitespace-nowrap">
+                        {fmt(entry.entry_date)}
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex flex-wrap gap-1">
-                          {parts.map((p: any, i: number) => (
-                            <span key={i} className={`text-xs font-medium px-2 py-0.5 rounded-full ${METHOD_COLORS[p.method] ?? 'bg-slate-100 text-slate-600'}`}>
-                              {METHOD_LABELS[p.method] ?? p.method} ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                              {p.reference ? ` · ${p.reference}` : ''}
-                            </span>
-                          ))}
+                        <div>
+                          <span className="text-slate-900 font-medium">
+                            {entry.description ||
+                              (isCharge ? SUBTYPE_LABELS[entry.subtype] ?? 'Charge' : 'Payment received')}
+                          </span>
+                          {!isCharge && parts.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {parts.map((p: any, i: number) => (
+                                <span key={i} className={`text-xs font-medium px-1.5 py-0.5 rounded-full ${METHOD_COLORS[p.method] ?? 'bg-slate-100 text-slate-600'}`}>
+                                  {METHOD_LABELS[p.method] ?? p.method} ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  {p.reference ? ` · ${p.reference}` : ''}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-right">
-                        <span className={`text-sm font-semibold ${
-                          diff === 0 ? 'text-green-600' : diff < 0 ? 'text-amber-600' : 'text-red-600'
-                        }`}>
-                          ${total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </span>
+                      <td className="px-4 py-3 text-right font-medium text-red-600">
+                        {isCharge ? `$${Number(entry.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : ''}
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-4 py-3 text-right font-medium text-green-600">
+                        {!isCharge ? `$${Number(entry.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : ''}
+                      </td>
+                      <td className={`px-5 py-3 text-right font-bold ${
+                        entry.runningBalance <= 0 ? 'text-green-600' : 'text-slate-900'
+                      }`}>
+                        ${Math.abs(entry.runningBalance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {entry.runningBalance < 0 && <span className="text-xs font-normal text-green-500 ml-1">cr</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right">
                         <form action={deleteAction}>
                           <button type="submit"
                             className="text-xs text-slate-400 hover:text-red-500 transition-colors font-medium"
-                            onClick={(e) => { if (!confirm('Delete this payment record?')) e.preventDefault() }}>
-                            Delete
+                            onClick={(e) => { if (!confirm('Delete this entry?')) e.preventDefault() }}>
+                            ×
                           </button>
                         </form>
                       </td>
