@@ -37,20 +37,17 @@ export default async function EditLeasePage({
   const unit = lease.unit as any
   const resolvedPropertyId = propertyId ?? unit?.property?.id
   const leaseTenants = (lease.lease_tenants as any[]) ?? []
-  const primaryTenant = leaseTenants.find(lt => lt.is_primary)
-  const coTenant = leaseTenants.find(lt => !lt.is_primary)
 
   const action = updateLease.bind(null, id, resolvedPropertyId)
 
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
-        <Link href={`/properties/${resolvedPropertyId}`}
-          className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
+        <Link href="/leases" className="text-sm text-slate-500 hover:text-slate-700 flex items-center gap-1">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Back to property
+          Leases
         </Link>
         <h1 className="text-2xl font-bold text-slate-900 mt-3">Edit lease</h1>
         <p className="text-slate-500 mt-0.5">{unit?.property?.address} — {unit?.unit_label}</p>
@@ -61,9 +58,14 @@ export default async function EditLeasePage({
         unitLabel={unit?.unit_label ?? ''}
         isEdit
         defaultValues={{
-          primary_tenant_id: primaryTenant?.tenant?.id,
-          co_tenant_id: coTenant?.tenant?.id,
+          lease_tenants: leaseTenants.map((lt: any) => ({
+            id: lt.tenant.id,
+            first_name: lt.tenant.first_name,
+            last_name: lt.tenant.last_name,
+            is_primary: lt.is_primary,
+          })),
           rent_amount: lease.rent_amount,
+          late_fee_amount: lease.late_fee_amount ?? undefined,
           lease_start: lease.lease_start,
           lease_end: lease.lease_end ?? undefined,
           renewal_date: lease.renewal_date ?? undefined,

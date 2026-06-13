@@ -127,7 +127,7 @@ export default function UnitList({ units, propertyId }: { units: Unit[]; propert
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-slate-400 italic">Vacant</span>
                     <Link
-                      href={`/properties/${propertyId}/units/${unit.id}/leases/new`}
+                      href={`/leases/new?propertyId=${propertyId}&unitId=${unit.id}`}
                       className="text-xs font-medium text-indigo-600 hover:text-indigo-700 px-2.5 py-1 rounded-lg border border-indigo-200 hover:border-indigo-300 transition-colors"
                     >
                       + Add lease

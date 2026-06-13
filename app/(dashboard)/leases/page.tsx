@@ -55,6 +55,12 @@ export default async function LeasesPage({
             {leases?.length ?? 0} {showAll ? 'total' : 'active'}
           </p>
         </div>
+        <Link
+          href="/leases/new"
+          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+        >
+          + New lease
+        </Link>
       </div>
 
       <Suspense>
