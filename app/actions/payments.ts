@@ -59,6 +59,35 @@ export async function recordPayment(leaseId: string, formData: FormData) {
   redirect(`/leases/${leaseId}/edit`)
 }
 
+export async function chargeNextRent(leaseId: string, formData: FormData) {
+  const supabase = await createClient()
+
+  const period = formData.get('period') as string
+  const amount = parseFloat(formData.get('amount') as string)
+  const entry_date = formData.get('entry_date') as string
+  const includeLF = formData.get('include_late_fee') === 'on'
+  const lfAmount = parseFloat(formData.get('late_fee_amount') as string)
+
+  const [y, m] = period.split('-').map(Number)
+  const monthLabel = new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+
+  const { error } = await supabase
+    .from('lease_ledger_entries')
+    .insert({ lease_id: leaseId, type: 'charge', subtype: 'rent', amount, entry_date, description: `Rent — ${monthLabel}` })
+
+  if (error) return { error: error.message }
+
+  if (includeLF && !isNaN(lfAmount) && lfAmount > 0) {
+    const { error: lfError } = await supabase
+      .from('lease_ledger_entries')
+      .insert({ lease_id: leaseId, type: 'charge', subtype: 'late_fee', amount: lfAmount, entry_date, description: 'Late fee' })
+    if (lfError) return { error: lfError.message }
+  }
+
+  revalidatePath(`/leases/${leaseId}/edit`)
+  redirect(`/leases/${leaseId}/edit`)
+}
+
 export async function deleteLedgerEntry(entryId: string, leaseId: string) {
   const supabase = await createClient()
   await supabase.from('lease_ledger_entries').delete().eq('id', entryId)

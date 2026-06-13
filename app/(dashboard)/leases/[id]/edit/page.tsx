@@ -131,13 +131,9 @@ export default async function EditLeasePage({
             )}
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            <Link href={`/leases/${id}/charges/new?type=rent`}
+            <Link href={`/leases/${id}/charges/next-rent`}
               className="text-xs font-medium text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-colors">
-              + Rent charge
-            </Link>
-            <Link href={`/leases/${id}/charges/new?type=late_fee`}
-              className="text-xs font-medium text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-colors">
-              + Late fee
+              + Charge next rent
             </Link>
             <Link href={`/leases/${id}/payments/new`}
               className="text-xs font-medium text-white px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors">
