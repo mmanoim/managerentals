@@ -92,6 +92,10 @@ export default async function PaymentsPage({
             {(propertyId || unitId || method) && ' (filtered)'}
           </p>
         </div>
+        <Link href="/payments/new"
+          className="text-sm font-medium text-white px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors flex-shrink-0">
+          + Record payment
+        </Link>
       </div>
 
       <Suspense>
