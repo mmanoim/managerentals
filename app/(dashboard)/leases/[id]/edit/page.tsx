@@ -85,33 +85,8 @@ export default async function EditLeasePage({
         <p className="text-slate-500 mt-0.5">{unit?.property?.address} — {unit?.unit_label}</p>
       </div>
 
-      <LeaseForm
-        action={action}
-        tenants={tenants ?? []}
-        unitLabel={unit?.unit_label ?? ''}
-        isEdit
-        defaultValues={{
-          lease_tenants: leaseTenants.map((lt: any) => ({
-            id: lt.tenant.id,
-            first_name: lt.tenant.first_name,
-            last_name: lt.tenant.last_name,
-            is_primary: lt.is_primary,
-          })),
-          rent_amount: lease.rent_amount,
-          late_fee_amount: lease.late_fee_amount ?? undefined,
-          lease_start: lease.lease_start,
-          lease_end: lease.lease_end ?? undefined,
-          renewal_date: lease.renewal_date ?? undefined,
-          status: lease.status,
-          security_deposit: lease.security_deposit ?? undefined,
-          security_deposit_returned: lease.security_deposit_returned ?? undefined,
-          security_deposit_return_date: lease.security_deposit_return_date ?? undefined,
-          notes: lease.notes ?? undefined,
-        }}
-      />
-
       {/* Ledger */}
-      <div className="mt-10">
+      <div className="mb-10">
         {/* Header: balance + actions */}
         <div className="flex items-start justify-between mb-5">
           <div>
@@ -210,6 +185,31 @@ export default async function EditLeasePage({
           </div>
         )}
       </div>
+
+      <LeaseForm
+        action={action}
+        tenants={tenants ?? []}
+        unitLabel={unit?.unit_label ?? ''}
+        isEdit
+        defaultValues={{
+          lease_tenants: leaseTenants.map((lt: any) => ({
+            id: lt.tenant.id,
+            first_name: lt.tenant.first_name,
+            last_name: lt.tenant.last_name,
+            is_primary: lt.is_primary,
+          })),
+          rent_amount: lease.rent_amount,
+          late_fee_amount: lease.late_fee_amount ?? undefined,
+          lease_start: lease.lease_start,
+          lease_end: lease.lease_end ?? undefined,
+          renewal_date: lease.renewal_date ?? undefined,
+          status: lease.status,
+          security_deposit: lease.security_deposit ?? undefined,
+          security_deposit_returned: lease.security_deposit_returned ?? undefined,
+          security_deposit_return_date: lease.security_deposit_return_date ?? undefined,
+          notes: lease.notes ?? undefined,
+        }}
+      />
     </div>
   )
 }
