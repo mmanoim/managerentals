@@ -4,6 +4,42 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
+function txPayload(formData: FormData) {
+  const rawAmount = parseFloat(formData.get('amount') as string)
+  const direction = formData.get('direction') as string
+  const amount = direction === 'out' ? -Math.abs(rawAmount) : Math.abs(rawAmount)
+  return {
+    date:        formData.get('date') as string,
+    description: formData.get('description') as string,
+    amount,
+    category_id: (formData.get('category_id') as string) || null,
+    property_id: (formData.get('property_id') as string) || null,
+    notes:       (formData.get('notes') as string) || null,
+    source:      'manual' as const,
+  }
+}
+
+export async function createTransaction(accountId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('account_transactions')
+    .insert({ account_id: accountId, ...txPayload(formData) })
+  if (error) return { error: error.message }
+  revalidatePath(`/accounts/${accountId}`)
+  redirect(`/accounts/${accountId}`)
+}
+
+export async function updateTransaction(accountId: string, txId: string, formData: FormData) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('account_transactions')
+    .update(txPayload(formData))
+    .eq('id', txId)
+  if (error) return { error: error.message }
+  revalidatePath(`/accounts/${accountId}`)
+  redirect(`/accounts/${accountId}`)
+}
+
 export async function deleteTransaction(accountId: string, txId: string) {
   const supabase = await createClient()
   await supabase.from('account_transactions').delete().eq('id', txId)
