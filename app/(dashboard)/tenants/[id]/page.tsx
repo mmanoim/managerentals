@@ -49,10 +49,16 @@ export default async function TenantPage({ params }: { params: Promise<{ id: str
           </Link>
           <h1 className="text-2xl font-bold text-slate-900">{tenant.first_name} {tenant.last_name}</h1>
         </div>
-        <Link href={`/tenants/${id}/edit`}
-          className="text-sm font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-colors">
-          Edit
-        </Link>
+        <div className="flex gap-2">
+          <Link href={`/tenants/${id}/balance`}
+            className="text-sm font-medium text-white px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors">
+            Balance &amp; Payments
+          </Link>
+          <Link href={`/tenants/${id}/edit`}
+            className="text-sm font-medium text-slate-600 hover:text-slate-900 px-4 py-2 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition-colors">
+            Edit
+          </Link>
+        </div>
       </div>
 
       {/* Contact info */}
