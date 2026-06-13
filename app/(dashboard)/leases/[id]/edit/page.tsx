@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import LeaseForm from '@/components/LeaseForm'
+import DeleteEntryButton from '@/components/DeleteEntryButton'
 import { updateLease } from '@/app/actions/leases'
 import { deleteLedgerEntry } from '@/app/actions/payments'
 
@@ -203,13 +204,7 @@ export default async function EditLeasePage({
                         {entry.runningBalance < 0 && <span className="text-xs font-normal text-green-500 ml-1">cr</span>}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <form action={deleteAction}>
-                          <button type="submit"
-                            className="text-xs text-slate-400 hover:text-red-500 transition-colors font-medium"
-                            onClick={(e) => { if (!confirm('Delete this entry?')) e.preventDefault() }}>
-                            ×
-                          </button>
-                        </form>
+                        <DeleteEntryButton action={deleteAction} />
                       </td>
                     </tr>
                   )
