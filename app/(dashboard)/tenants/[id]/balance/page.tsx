@@ -58,11 +58,7 @@ export default async function TenantBalancePage({
   const leases = (tenant.lease_tenants ?? [])
     .map((lt: any) => lt.lease)
     .filter(Boolean)
-    .sort((a: any, b: any) => {
-      if (a.status === 'active' && b.status !== 'active') return -1
-      if (b.status === 'active' && a.status !== 'active') return 1
-      return new Date(b.lease_start).getTime() - new Date(a.lease_start).getTime()
-    })
+    .sort((a: any, b: any) => new Date(a.lease_start).getTime() - new Date(b.lease_start).getTime())
 
   const leaseIds = leases.map((l: any) => l.id)
 
