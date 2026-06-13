@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ManageRentals — Implementation Plan</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 15px; line-height: 1.7; color: #1a1a2e; background: #f5f7fa; padding: 40px 20px; }
+    .container { max-width: 900px; margin: 0 auto; background: #ffffff; border-radius: 12px; padding: 48px 56px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); }
+    h1 { font-size: 2rem; color: #0f172a; border-bottom: 3px solid #059669; padding-bottom: 12px; margin-bottom: 8px; }
+    h2 { font-size: 1.35rem; color: #1e293b; margin-top: 44px; margin-bottom: 12px; padding: 10px 16px; border-left: 4px solid #059669; background: #f0fdf4; border-radius: 0 6px 6px 0; }
+    h3 { font-size: 1.05rem; color: #0f5132; margin-top: 28px; margin-bottom: 8px; font-weight: 700; }
+    h4 { font-size: 0.95rem; color: #334155; margin-top: 20px; margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+    p { margin-bottom: 14px; color: #374151; }
+    ul, ol { padding-left: 24px; margin-bottom: 14px; }
+    li { margin-bottom: 6px; color: #374151; }
+    li input[type=checkbox] { margin-right: 6px; }
+    strong { color: #0f172a; }
+    blockquote {
+      border-left: 4px solid #059669;
+      padding: 10px 16px;
+      background: #f0fdf4;
+      color: #065f46;
+      margin: 12px 0 20px;
+      border-radius: 0 6px 6px 0;
+      font-style: italic;
+    }
+    code { background: #f1f5f9; padding: 2px 6px; border-radius: 4px; font-family: "SF Mono", "Fira Code", monospace; font-size: 0.88em; color: #059669; }
+    pre { background: #0f172a; color: #e2e8f0; padding: 20px 24px; border-radius: 8px; overflow-x: auto; margin: 16px 0; font-family: "SF Mono", "Fira Code", monospace; font-size: 0.88em; line-height: 1.6; }
+    pre code { background: none; color: inherit; padding: 0; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0 24px; font-size: 0.93em; }
+    th { background: #059669; color: white; padding: 10px 14px; text-align: left; font-weight: 600; }
+    td { padding: 9px 14px; border-bottom: 1px solid #e2e8f0; color: #374151; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    hr { border: none; border-top: 1px solid #e2e8f0; margin: 36px 0; }
+  </style>
+</head>
+<body>
+  <div class="container"><h1>Implementation Plan</h1>
+<h2>Rental Property Management System (ManageRentals)</h2>
+<p><strong>Version:</strong> 1.0<br />
+<strong>Date:</strong> June 2026<br />
+<strong>Based on PRD:</strong> v1.3</p>
+<hr />
+<h2>Overview</h2>
+<p>The system is built in 7 phases. Each phase delivers a fully working, deployable increment. No phase leaves the system in a broken or partial state — at the end of every phase, what exists works end-to-end.</p>
+<p><strong>Guiding principle:</strong> Get a real URL in the browser as early as possible. Infrastructure and auth first, then data, then features, then reports.</p>
+<hr />
+<h2>Phase 1 — Foundation, Authentication &amp; Properties/Units</h2>
+<blockquote>
+<p><strong>Goal:</strong> A real, live web app at a URL where a user can log in and manage properties and units.</p>
+</blockquote>
+<h3>Step 1.1 — Project Scaffolding</h3>
+<ul>
+<li>Initialize <strong>Next.js 14</strong> project with App Router (<code>/app</code> directory)</li>
+<li>Configure <strong>TypeScript</strong> and <strong>Tailwind CSS</strong></li>
+<li>Connect to the existing <strong>Supabase</strong> project (<code>managerentals</code>)</li>
+<li>Push to the existing <strong>GitHub</strong> repo (<code>mmanoim/managerentals</code>)</li>
+<li>Deploy to <strong>Vercel</strong> — auto-deploy on every push to <code>main</code></li>
+<li>Set up environment variables: <code>SUPABASE_URL</code>, <code>SUPABASE_ANON_KEY</code>, <code>SUPABASE_SERVICE_ROLE_KEY</code></li>
+</ul>
+<p><strong>Deliverable:</strong> A live URL on Vercel showing a placeholder homepage.</p>
+<hr />
+<h3>Step 1.2 — Database Schema (Phase 1 Tables)</h3>
+<p>Design and apply the following tables in Supabase:</p>
+<h4><code>organizations</code></h4>
+<p>Placeholder for future multi-user support. Every record belongs to an org from day one.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>uuid</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td>name</td>
+<td>text</td>
+<td>e.g. "KHI Properties"</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4><code>properties</code></h4>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>uuid</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td>org_id</td>
+<td>uuid</td>
+<td>FK → organizations</td>
+</tr>
+<tr>
+<td>address</td>
+<td>text</td>
+<td>Full street address</td>
+</tr>
+<tr>
+<td>city</td>
+<td>text</td>
+<td></td>
+</tr>
+<tr>
+<td>state</td>
+<td>text</td>
+<td></td>
+</tr>
+<tr>
+<td>zip</td>
+<td>text</td>
+<td></td>
+</tr>
+<tr>
+<td>purchase_date</td>
+<td>date</td>
+<td></td>
+</tr>
+<tr>
+<td>purchase_price</td>
+<td>numeric</td>
+<td></td>
+</tr>
+<tr>
+<td>num_units</td>
+<td>integer</td>
+<td></td>
+</tr>
+<tr>
+<td>notes</td>
+<td>text</td>
+<td>Optional</td>
+</tr>
+<tr>
+<td>archived</td>
+<td>boolean</td>
+<td>Soft delete</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+<tr>
+<td>updated_at</td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h4><code>units</code></h4>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>id</td>
+<td>uuid</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td>property_id</td>
+<td>uuid</td>
+<td>FK → properties</td>
+</tr>
+<tr>
+<td>unit_label</td>
+<td>text</td>
+<td>e.g. "Unit 1", "Apt 2A", "Garage"</td>
+</tr>
+<tr>
+<td>monthly_rent</td>
+<td>numeric</td>
+<td>Current asking rent</td>
+</tr>
+<tr>
+<td>archived</td>
+<td>boolean</td>
+<td>Soft delete</td>
+</tr>
+<tr>
+<td>created_at</td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+<tr>
+<td>updated_at</td>
+<td>timestamptz</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Deliverable:</strong> Tables created in Supabase with RLS (Row Level Security) enabled.</p>
+<hr />
+<h3>Step 1.3 — Authentication</h3>
+<ul>
+<li>Enable <strong>Supabase Auth</strong> with email/password provider</li>
+<li>Create a single admin user account (marina@manoim.com) directly in Supabase dashboard</li>
+<li>Build <code>/login</code> page — email + password form, no self-serve signup</li>
+<li>Implement <strong>middleware</strong> to protect all routes: unauthenticated users redirect to <code>/login</code></li>
+<li>Session persistence via Supabase auth cookies (stay logged in across browser sessions)</li>
+<li>Simple logout button in the nav</li>
+</ul>
+<p><strong>Deliverable:</strong> Login page at the live URL. Unauthenticated access blocked everywhere else.</p>
+<hr />
+<h3>Step 1.4 — App Shell &amp; Navigation</h3>
+<ul>
+<li>Top navigation bar: logo, nav links (Properties, ← more added per phase), user menu + logout</li>
+<li>Sidebar or tab navigation within a property detail view</li>
+<li>Responsive layout (desktop-first, readable on tablet)</li>
+<li>Loading states and error boundaries</li>
+</ul>
+<p><strong>Deliverable:</strong> Consistent UI shell that all future features slot into.</p>
+<hr />
+<h3>Step 1.5 — Properties Management</h3>
+<ul>
+<li><code>/properties</code> — list of all properties with address, number of units, and status (active/archived)</li>
+<li><code>/properties/new</code> — form to add a property</li>
+<li><code>/properties/[id]</code> — property detail page showing summary info and list of units</li>
+<li><code>/properties/[id]/edit</code> — edit property details</li>
+<li>Archive a property (soft delete — hidden from list but data preserved)</li>
+</ul>
+<p><strong>Deliverable:</strong> Full CRUD for properties.</p>
+<hr />
+<h3>Step 1.6 — Units Management</h3>
+<ul>
+<li>Units are managed within the property detail page</li>
+<li>Add / edit / archive units inline on <code>/properties/[id]</code></li>
+<li>Each unit shows: label, monthly rent, current occupancy status (vacant/occupied — populated in Phase 2)</li>
+</ul>
+<p><strong>Deliverable:</strong> Full CRUD for units, scoped to their property.</p>
+<hr />
+<h3>Phase 1 Complete Checklist</h3>
+<ul>
+<li>[ ] Live URL on Vercel</li>
+<li>[ ] Login works with email + password</li>
+<li>[ ] Logged-out users cannot access any page</li>
+<li>[ ] Can create, view, edit, archive properties</li>
+<li>[ ] Can create, view, edit, archive units within a property</li>
+<li>[ ] All data persisted in Supabase</li>
+</ul>
+<hr />
+<h2>Phase 2 — Tenants &amp; Leases</h2>
+<blockquote>
+<p><strong>Goal:</strong> Track who lives in each unit, their lease terms, and security deposits.</p>
+</blockquote>
+<h3>Key deliverables</h3>
+<ul>
+<li>Tenant directory linked to units</li>
+<li>Lease records per tenant (start/end, rent amount, renewal date)</li>
+<li>Full lease history per unit (renewals, rent changes)</li>
+<li>Security deposit tracking (received, account held in, returned)</li>
+<li>Unit status auto-updates to Occupied/Vacant based on active lease</li>
+</ul>
+<h3>New tables</h3>
+<ul>
+<li><code>tenants</code> — name, contact info, move-in date, linked to a unit</li>
+<li><code>leases</code> — start date, end date, monthly rent, renewal date, FK to tenant + unit</li>
+<li><code>security_deposits</code> — amount, received date, account, returned date + amount</li>
+</ul>
+<hr />
+<h2>Phase 3 — Accounts &amp; Chart of Accounts</h2>
+<blockquote>
+<p><strong>Goal:</strong> Define all financial accounts and expense/income categories used in the system.</p>
+</blockquote>
+<h3>Key deliverables</h3>
+<ul>
+<li>Account management: create accounts with type (Business Checking, Personal, HELOC, CC, Digital Wallet, etc.)</li>
+<li>Mark accounts as Personal or Business</li>
+<li>Flag accounts as deposit destinations (multiple allowed)</li>
+<li>Chart of accounts: configurable list of income/expense categories</li>
+<li>Seed default categories from existing Excel data</li>
+</ul>
+<h3>New tables</h3>
+<ul>
+<li><code>accounts</code> — name, type, personal/business flag, is_deposit_destination, starting balance</li>
+<li><code>account_types</code> — lookup table (extensible)</li>
+<li><code>categories</code> — name, type (income/expense), active flag</li>
+</ul>
+<hr />
+<h2>Phase 4 — Transactions &amp; Payment Flow</h2>
+<blockquote>
+<p><strong>Goal:</strong> Record all money in and out, and track the full lifecycle from tenant payment to bank deposit.</p>
+</blockquote>
+<h3>Key deliverables</h3>
+<ul>
+<li>Transaction entry form: date, property, unit, account, category, amount, memo, payment method</li>
+<li>Payment methods: Check, Bank Transfer, Cash, Cash App, Venmo, Zelle, Other</li>
+<li>Deposit status on income transactions: <code>received</code> → <code>deposited</code></li>
+<li>Select destination account when marking as deposited</li>
+<li><strong>Undeposited Payments Dashboard</strong> — live view of all received-but-not-deposited payments</li>
+<li>Bulk deposit action: select multiple payments, pick destination, mark all deposited</li>
+</ul>
+<h3>New tables</h3>
+<ul>
+<li><code>transactions</code> — all income and expense records</li>
+<li><code>payment_methods</code> — configurable lookup list</li>
+</ul>
+<hr />
+<h2>Phase 5 — Insurance &amp; Renewals Dashboard</h2>
+<blockquote>
+<p><strong>Goal:</strong> Track all insurance policies and surface all upcoming renewals in one place.</p>
+</blockquote>
+<h3>Key deliverables</h3>
+<ul>
+<li>Insurance policy management per property (type, provider, policy #, premium, dates)</li>
+<li>Premium payments linked to transaction ledger</li>
+<li><strong>Renewals Dashboard</strong> — unified view of expiring leases + expiring insurance policies</li>
+<li>Color-coded countdown: red ≤ 30 days, yellow ≤ 60 days</li>
+</ul>
+<h3>New tables</h3>
+<ul>
+<li><code>insurance_policies</code> — property, type, provider, premium, start/renewal date, status</li>
+<li><code>insurance_types</code> — configurable lookup (Landlord, Liability, Umbrella, Flood, etc.)</li>
+</ul>
+<hr />
+<h2>Phase 6 — Late Fees, Collection Notes &amp; Outstanding Payments</h2>
+<blockquote>
+<p><strong>Goal:</strong> Track overdue rent, assess late fees, document collection activity, and surface who owes what.</p>
+</blockquote>
+<h3>Key deliverables</h3>
+<ul>
+<li>Late payment flagging: tenant marked overdue when rent not received by due date</li>
+<li>Late fee recording: amount, date, reason — posted to transaction ledger as income</li>
+<li>Collection notes: timestamped log per tenant, full history preserved</li>
+<li><strong>Outstanding Payments view</strong> — all tenants with any balance due, days overdue, total owed</li>
+</ul>
+<h3>New tables</h3>
+<ul>
+<li><code>late_fees</code> — tenant, amount, date assessed, reason, linked transaction</li>
+<li><code>collection_notes</code> — tenant, date, note text, logged_by</li>
+</ul>
+<hr />
+<h2>Phase 7 — Reports</h2>
+<blockquote>
+<p><strong>Goal:</strong> Turn all the data into actionable financial summaries.</p>
+</blockquote>
+<h3>Reports to build (all exportable to CSV)</h3>
+<table>
+<thead>
+<tr>
+<th>Report</th>
+<th>Source Data</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Monthly P&amp;L per Property</td>
+<td>Transactions grouped by property + month</td>
+</tr>
+<tr>
+<td>Tenant Payment History</td>
+<td>Transactions + late fees per tenant</td>
+</tr>
+<tr>
+<td>Outstanding Payments</td>
+<td>Overdue tenants + balances</td>
+</tr>
+<tr>
+<td>Collection Notes</td>
+<td>collection_notes per tenant — also PDF export</td>
+</tr>
+<tr>
+<td>Year-End Summary</td>
+<td>Annual totals per property for tax prep</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Phase 8 — Data Migration (Future)</h2>
+<blockquote>
+<p>Import historical data from KHI_accting.xlsm into the live system.</p>
+</blockquote>
+<ul>
+<li>Map Excel sheet columns to database schema</li>
+<li>Write Python import script (using openpyxl, already installed)</li>
+<li>Dry-run mode to preview what will be imported before committing</li>
+<li>Import sequence: properties → units → tenants → leases → accounts → transactions</li>
+</ul>
+<hr />
+<h2>Technology Decisions</h2>
+<table>
+<thead>
+<tr>
+<th>Layer</th>
+<th>Choice</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Framework</td>
+<td>Next.js 14 (App Router)</td>
+<td>File-based routing, server components, built-in API routes</td>
+</tr>
+<tr>
+<td>Database</td>
+<td>Supabase (PostgreSQL)</td>
+<td>Already provisioned, handles auth + RLS + realtime</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td>Supabase Auth</td>
+<td>Email/password, session cookies, RLS integration</td>
+</tr>
+<tr>
+<td>Styling</td>
+<td>Tailwind CSS</td>
+<td>Utility-first, fast to build, easy to maintain</td>
+</tr>
+<tr>
+<td>Hosting</td>
+<td>Vercel</td>
+<td>Zero-config, auto-deploys from GitHub</td>
+</tr>
+<tr>
+<td>Language</td>
+<td>TypeScript</td>
+<td>Type safety across frontend and database queries</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2>Development Conventions</h2>
+<ul>
+<li><strong>One PR per feature</strong> — each step in a phase is a separate pull request</li>
+<li><strong>Database migrations</strong> as SQL files in <code>/supabase/migrations</code> — tracked in git</li>
+<li><strong>No hardcoded data</strong> — account types, payment methods, categories are always database-driven</li>
+<li><strong>Soft deletes everywhere</strong> — archive flag, never hard delete user data</li>
+<li><strong><code>org_id</code> on every table</strong> — multi-user support is a permission layer, not a schema rewrite</li>
+</ul></div>
+</body>
+</html>
