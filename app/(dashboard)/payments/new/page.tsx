@@ -19,7 +19,7 @@ export default async function NewPaymentSelectPage() {
     supabase
       .from('leases')
       .select('id, unit_id, status, rent_amount, lease_tenants(is_primary, tenant:tenants(first_name, last_name))')
-      .in('status', ['active', 'month_to_month'])
+      .eq('status', 'active')
       .order('created_at', { ascending: false }),
   ])
 

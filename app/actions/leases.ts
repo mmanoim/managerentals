@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { type Enums } from '@/lib/supabase/types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -14,7 +15,7 @@ function leasePayload(formData: FormData) {
     lease_start: formData.get('lease_start') as string,
     lease_end: (formData.get('lease_end') as string) || null,
     renewal_date: (formData.get('renewal_date') as string) || null,
-    status: (formData.get('status') as string) || 'active',
+    status: ((formData.get('status') as string) || 'active') as Enums<'lease_status'>,
     security_deposit: sd ? parseFloat(sd) : null,
     security_deposit_returned: sdr ? parseFloat(sdr) : null,
     security_deposit_return_date: (formData.get('security_deposit_return_date') as string) || null,

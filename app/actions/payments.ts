@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { type Enums } from '@/lib/supabase/types'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -33,7 +34,7 @@ export async function recordPayment(leaseId: string, formData: FormData) {
 
   const parts = methods
     .map((method, i) => ({
-      method,
+      method: method as Enums<'payment_method'>,
       amount: parseFloat(amounts[i]),
       reference: references[i] || null,
     }))

@@ -1,254 +1,238 @@
-# Implementation Plan
-## Rental Property Management System (ManageRentals)
+# ManageRentals — Full Implementation Plan
+## Long-Term Roadmap
 
-**Version:** 1.0  
-**Date:** June 2026  
-**Based on PRD:** v1.3
-
----
-
-## Overview
-
-The system is built in 7 phases. Each phase delivers a fully working, deployable increment. No phase leaves the system in a broken or partial state — at the end of every phase, what exists works end-to-end.
-
-**Guiding principle:** Get a real URL in the browser as early as possible. Infrastructure and auth first, then data, then features, then reports.
+**Version:** 2.0  
+**Updated:** June 2026  
+**Product:** rentals.manoim.com  
+**Stack:** Next.js 16, Supabase (PostgreSQL), Vercel, TypeScript, Tailwind CSS
 
 ---
 
-## Phase 1 — Foundation, Authentication & Properties/Units
-> **Goal:** A real, live web app at a URL where a user can log in and manage properties and units.
+## Context & Purpose
 
-### Step 1.1 — Project Scaffolding
-- Initialize **Next.js 14** project with App Router (`/app` directory)
-- Configure **TypeScript** and **Tailwind CSS**
-- Connect to the existing **Supabase** project (`managerentals`)
-- Push to the existing **GitHub** repo (`mmanoim/managerentals`)
-- Deploy to **Vercel** — auto-deploy on every push to `main`
-- Set up environment variables: `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+ManageRentals replaces a multi-sheet Excel workbook (`KHI_accting.xlsm` + `JointAccountReconciliation.xlsx`) used to manage a portfolio of residential rental properties owned by Marina and Jacob.
 
-**Deliverable:** A live URL on Vercel showing a placeholder homepage.
+The core problem being solved is **tracking the full lifecycle of a rent payment** — from the moment a tenant pays (in any form: Zelle, Cash App, check, cash) through to the moment that money lands in the joint bank account — with full visibility at every step.
 
----
-
-### Step 1.2 — Database Schema (Phase 1 Tables)
-Design and apply the following tables in Supabase:
-
-#### `organizations`
-Placeholder for future multi-user support. Every record belongs to an org from day one.
-
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | Primary key |
-| name | text | e.g. "KHI Properties" |
-| created_at | timestamptz | |
-
-#### `properties`
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | Primary key |
-| org_id | uuid | FK → organizations |
-| address | text | Full street address |
-| city | text | |
-| state | text | |
-| zip | text | |
-| purchase_date | date | |
-| purchase_price | numeric | |
-| num_units | integer | |
-| notes | text | Optional |
-| archived | boolean | Soft delete |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
-
-#### `units`
-| Column | Type | Notes |
-|---|---|---|
-| id | uuid | Primary key |
-| property_id | uuid | FK → properties |
-| unit_label | text | e.g. "Unit 1", "Apt 2A", "Garage" |
-| monthly_rent | numeric | Current asking rent |
-| archived | boolean | Soft delete |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
-
-**Deliverable:** Tables created in Supabase with RLS (Row Level Security) enabled.
+Secondary purposes:
+- Maintain tenant and lease records per unit
+- Track all property income and expenses against real bank accounts
+- Identify unreconciled payments (money received but not yet confirmed in bank)
+- Produce financial reports for tax preparation
 
 ---
 
-### Step 1.3 — Authentication
-- Enable **Supabase Auth** with email/password provider
-- Create a single admin user account (marina@manoim.com) directly in Supabase dashboard
-- Build `/login` page — email + password form, no self-serve signup
-- Implement **middleware** to protect all routes: unauthenticated users redirect to `/login`
-- Session persistence via Supabase auth cookies (stay logged in across browser sessions)
-- Simple logout button in the nav
+## Architecture: Two-Layer Model
 
-**Deliverable:** Login page at the live URL. Unauthenticated access blocked everywhere else.
+The system deliberately uses **two parallel layers** that are linked via reconciliation:
 
----
+### Layer 1 — Tenant Ledger (built ✅)
+Records what tenants owe and what they've paid, per lease:
+- Charges: rent, late fees, adjustments
+- Payments: recorded by method (Zelle, Cash App, check, cash, Venmo)
+- Running balance per lease
 
-### Step 1.4 — App Shell & Navigation
-- Top navigation bar: logo, nav links (Properties, ← more added per phase), user menu + logout
-- Sidebar or tab navigation within a property detail view
-- Responsive layout (desktop-first, readable on tablet)
-- Loading states and error boundaries
+This layer is the **tenant-facing truth**: it answers "does this tenant owe us money?"
 
-**Deliverable:** Consistent UI shell that all future features slot into.
+### Layer 2 — Bank/Account Layer (being built 🔄)
+Records actual transactions in real financial accounts:
+- Bank checking accounts (joint, personal)
+- Payment app accounts (Cash App, Zelle, Venmo)
+- Cash
+- Expense transactions (repairs, utilities, insurance, etc.)
 
----
+This layer is the **accounting truth**: it answers "what actually moved through our accounts?"
 
-### Step 1.5 — Properties Management
-- `/properties` — list of all properties with address, number of units, and status (active/archived)
-- `/properties/new` — form to add a property
-- `/properties/[id]` — property detail page showing summary info and list of units
-- `/properties/[id]/edit` — edit property details
-- Archive a property (soft delete — hidden from list but data preserved)
-
-**Deliverable:** Full CRUD for properties.
+### Reconciliation Bridge (planned ⬜)
+Links tenant payment entries to actual bank transactions, surfacing:
+- Payments received by tenants but not yet in the bank
+- Bank credits that haven't been matched to a tenant payment
+- Discrepancies (amount differences, missing entries)
 
 ---
 
-### Step 1.6 — Units Management
-- Units are managed within the property detail page
-- Add / edit / archive units inline on `/properties/[id]`
-- Each unit shows: label, monthly rent, current occupancy status (vacant/occupied — populated in Phase 2)
+## Status Key
 
-**Deliverable:** Full CRUD for units, scoped to their property.
-
----
-
-### Phase 1 Complete Checklist
-- [ ] Live URL on Vercel
-- [ ] Login works with email + password
-- [ ] Logged-out users cannot access any page
-- [ ] Can create, view, edit, archive properties
-- [ ] Can create, view, edit, archive units within a property
-- [ ] All data persisted in Supabase
+| Symbol | Meaning |
+|--------|---------|
+| ✅ | Complete and deployed |
+| 🔄 | In progress (current sprint) |
+| ⬜ | Planned, not started |
 
 ---
 
-## Phase 2 — Tenants & Leases
-> **Goal:** Track who lives in each unit, their lease terms, and security deposits.
+## Phase 1 — Foundation, Auth, Properties & Units ✅ COMPLETE
 
-### Key deliverables
-- Tenant directory linked to units
-- Lease records per tenant (start/end, rent amount, renewal date)
-- Full lease history per unit (renewals, rent changes)
-- Security deposit tracking (received, account held in, returned)
-- Unit status auto-updates to Occupied/Vacant based on active lease
+All items below are live at rentals.manoim.com.
 
-### New tables
-- `tenants` — name, contact info, move-in date, linked to a unit
-- `leases` — start date, end date, monthly rent, renewal date, FK to tenant + unit
-- `security_deposits` — amount, received date, account, returned date + amount
+- Next.js 16 project with App Router, TypeScript, Tailwind CSS
+- Supabase project `naugzylusfeeizdjgrfb` connected
+- GitHub repo `mmanoim/managerentals` → auto-deploys to Vercel on every push to `main`
+- Email + password login (marina@manoim.com)
+- Session persistence; all routes protected
+- Properties: create, view, edit, archive
+- Units: create, view, edit, archive (scoped to property)
 
 ---
 
-## Phase 3 — Accounts & Chart of Accounts
-> **Goal:** Define all financial accounts and expense/income categories used in the system.
+## Phase 2 — Tenants & Leases ✅ COMPLETE
 
-### Key deliverables
-- Account management: create accounts with type (Business Checking, Personal, HELOC, CC, Digital Wallet, etc.)
-- Mark accounts as Personal or Business
-- Flag accounts as deposit destinations (multiple allowed)
-- Chart of accounts: configurable list of income/expense categories
-- Seed default categories from existing Excel data
-
-### New tables
-- `accounts` — name, type, personal/business flag, is_deposit_destination, starting balance
-- `account_types` — lookup table (extensible)
-- `categories` — name, type (income/expense), active flag
+- Tenant directory: create, edit, archive
+- Leases: create, edit, multiple leases per unit for rent change history
+- Lease tenants: multiple tenants per lease (primary + secondary)
+- Security deposit tracking (amount, returned flag, return date)
+- Lease status: active, ended, pending
+- Lease detail page (`/leases/[id]/edit`) with ledger above the edit form
 
 ---
 
-## Phase 4 — Transactions & Payment Flow
-> **Goal:** Record all money in and out, and track the full lifecycle from tenant payment to bank deposit.
+## Phase 3 — Tenant Ledger ✅ COMPLETE
 
-### Key deliverables
-- Transaction entry form: date, property, unit, account, category, amount, memo, payment method
-- Payment methods: Check, Bank Transfer, Cash, Cash App, Venmo, Zelle, Other
-- Deposit status on income transactions: `received` → `deposited`
-- Select destination account when marking as deposited
-- **Undeposited Payments Dashboard** — live view of all received-but-not-deposited payments
-- Bulk deposit action: select multiple payments, pick destination, mark all deposited
+The core payment tracking layer (Layer 1 above).
 
-### New tables
-- `transactions` — all income and expense records
-- `payment_methods` — configurable lookup list
+**Charges:**
+- Rent charge with period label (e.g., "Rent — June 2026")
+- Late fee charge
+- Adjustment charge
+- "Charge next rent" button: auto-detects next period from last charge, pre-fills amount from lease, optional late fee checkbox
+
+**Payments:**
+- Record payment with multiple split methods (Zelle + Cash App in one transaction)
+- Methods: Zelle, Cash App, Venmo, check, cash
+- Reference number per payment part
+
+**Ledger display:**
+- Running balance column
+- Color-coded: red = balance due, green = credit
+- Delete entry with confirm dialog
+
+**Tenant view:**
+- Balance & Payments screen (`/tenants/[id]/balance`)
+- Summary cards: Total Charged, Total Paid, Balance Due
+- Per-lease ledger sorted oldest → newest
+
+**Data imported:**
+- 20 historical Zelle payments for 14 Cottage Unit 1 (2022–2025)
+- Split across 3 leases (3 rent rate periods: $700, $750, $800/mo)
 
 ---
 
-## Phase 5 — Insurance & Renewals Dashboard
-> **Goal:** Track all insurance policies and surface all upcoming renewals in one place.
+## Phase 4 — Accounting Layer 🔄 IN PROGRESS
 
-### Key deliverables
-- Insurance policy management per property (type, provider, policy #, premium, dates)
-- Premium payments linked to transaction ledger
-- **Renewals Dashboard** — unified view of expiring leases + expiring insurance policies
+See `ACCOUNTING_LAYER_PLAN.md` for the detailed short-term plan.
+
+**Why this phase exists:**  
+The tenant ledger records what was paid, but doesn't connect to real bank accounts. Every month, Marina manually cross-references the joint account bank statement against Cash App and Zelle records to confirm that all tenant payments actually landed. This phase builds a proper accounting layer so that reconciliation is done inside the system, not in a spreadsheet.
+
+### Phase 4A — Database Schema 🔄 IN PROGRESS
+Four new tables in Supabase:
+- `chart_of_accounts`
+- `accounts`
+- `account_transactions`
+- `reconciliations`
+
+Full schema in `ACCOUNTING_LAYER_PLAN.md`.
+
+### Phase 4B — Accounts Setup Page ⬜
+`/accounts` — list and manage financial accounts (bank accounts, payment apps, cash).
+
+### Phase 4C — Account Register ⬜
+`/accounts/[id]` — full transaction register for one account, running balance, filter by date/category.
+
+### Phase 4D — Manual Transaction Entry ⬜
+Form to manually enter a bank/account transaction (income or expense).
+
+### Phase 4E — CSV Bank Statement Import ⬜
+Upload a CSV from the bank (TD Bank, joint account) and auto-parse into `account_transactions`. Duplicate detection on import.
+
+### Phase 4F — Reconciliation UI ⬜
+Side-by-side view: tenant ledger payments on the left, unmatched bank transactions on the right. One-click to link them. Visual status: matched / unmatched / exception.
+
+### Phase 4G — Reconciliation Reports ⬜
+- Unreconciled tenant payments (received but not confirmed in bank)
+- Unmatched bank credits (in bank but not tied to a tenant)
+
+---
+
+## Phase 5 — Insurance & Renewals Dashboard ⬜
+
+**Why:** Insurance policies on rental properties expire and renew annually. A lapsed policy is a serious liability. Currently tracked in spreadsheets.
+
+- Insurance policy management per property (type, provider, policy #, premium, start/renewal dates)
+- Premium payments linked to the account transaction ledger
+- Renewals Dashboard: unified view of expiring leases + expiring insurance policies
 - Color-coded countdown: red ≤ 30 days, yellow ≤ 60 days
 
-### New tables
-- `insurance_policies` — property, type, provider, premium, start/renewal date, status
-- `insurance_types` — configurable lookup (Landlord, Liability, Umbrella, Flood, etc.)
+**New tables:** `insurance_policies`, `insurance_types`
 
 ---
 
-## Phase 6 — Late Fees, Collection Notes & Outstanding Payments
-> **Goal:** Track overdue rent, assess late fees, document collection activity, and surface who owes what.
+## Phase 6 — Collection Notes ⬜
 
-### Key deliverables
-- Late payment flagging: tenant marked overdue when rent not received by due date
-- Late fee recording: amount, date, reason — posted to transaction ledger as income
-- Collection notes: timestamped log per tenant, full history preserved
-- **Outstanding Payments view** — all tenants with any balance due, days overdue, total owed
+**Why:** When a tenant is late, there are usually phone calls and follow-ups. Currently these are tracked informally. A timestamped log protects the owner legally and makes handoff to an attorney easier.
 
-### New tables
-- `late_fees` — tenant, amount, date assessed, reason, linked transaction
-- `collection_notes` — tenant, date, note text, logged_by
+- Timestamped collection notes per tenant (date, note text)
+- Full note history preserved
+- Outstanding Payments view: all tenants with any balance due, days overdue, total owed
+- Collection Notes PDF export per tenant (for legal use)
+
+**New tables:** `collection_notes`
 
 ---
 
-## Phase 7 — Reports
-> **Goal:** Turn all the data into actionable financial summaries.
+## Phase 7 — Financial Reports ⬜
 
-### Reports to build (all exportable to CSV)
+**Why:** The year-end reports are currently built manually in Excel by going through 12 months of transactions. This phase generates them automatically.
 
-| Report | Source Data |
-|---|---|
-| Monthly P&L per Property | Transactions grouped by property + month |
-| Tenant Payment History | Transactions + late fees per tenant |
-| Outstanding Payments | Overdue tenants + balances |
-| Collection Notes | collection_notes per tenant — also PDF export |
-| Year-End Summary | Annual totals per property for tax prep |
+| Report | Description |
+|--------|-------------|
+| Monthly P&L per Property | Income vs. expenses by category, per property, per month |
+| Tenant Payment History | All ledger entries per tenant; highlights missed payments and late fees |
+| Outstanding Payments | All tenants with a balance due; days overdue, total owed |
+| Year-End Summary | Annual income/expense totals per property for tax prep (Schedule E) |
+| Reconciliation Status | All tenant payments vs. bank — matched, unmatched, exceptions |
+
+All reports exportable to CSV. Collection Notes also exportable to PDF.
 
 ---
 
-## Phase 8 — Data Migration (Future)
-> Import historical data from KHI_accting.xlsm into the live system.
+## Phase 8 — Data Migration from Excel ⬜
 
-- Map Excel sheet columns to database schema
-- Write Python import script (using openpyxl, already installed)
-- Dry-run mode to preview what will be imported before committing
+**Why:** Historical financial data (2020–2024) lives in `KHI_accting.xlsm`. Once the system is stable, this data needs to come in so all reporting covers the full history.
+
+- Map Excel columns to database schema
+- Python import script (using openpyxl)
+- Dry-run mode: preview before committing
 - Import sequence: properties → units → tenants → leases → accounts → transactions
+- Idempotent: safe to re-run
+
+---
+
+## Future Backlog (No Timeline)
+
+- **Multi-user access:** Individual logins for Marina, Jacob, and bookkeeper with role-based permissions. Architecture is already multi-user ready (`org_id` pattern).
+- **Bank feed integration:** Connect via Plaid for automatic transaction import instead of manual CSV upload.
+- **Tenant portal:** Tenant-facing rent payment and maintenance request portal.
+- **Document storage:** Attach lease PDFs, receipts to records.
+- **Mobile:** Responsive PWA or native app for logging cash payments on-the-go.
 
 ---
 
 ## Technology Decisions
 
 | Layer | Choice | Reason |
-|---|---|---|
-| Framework | Next.js 14 (App Router) | File-based routing, server components, built-in API routes |
-| Database | Supabase (PostgreSQL) | Already provisioned, handles auth + RLS + realtime |
-| Auth | Supabase Auth | Email/password, session cookies, RLS integration |
-| Styling | Tailwind CSS | Utility-first, fast to build, easy to maintain |
-| Hosting | Vercel | Zero-config, auto-deploys from GitHub |
-| Language | TypeScript | Type safety across frontend and database queries |
+|-------|--------|--------|
+| Framework | Next.js 16 (App Router) | Server components, server actions, file-based routing |
+| Database | Supabase (PostgreSQL) | Already provisioned; handles auth, RLS, PostgREST |
+| Auth | Supabase Auth | Email/password, session cookies |
+| Styling | Tailwind CSS | Utility-first, fast iteration |
+| Hosting | Vercel | Auto-deploys from GitHub `main` branch |
+| Language | TypeScript | Type safety across frontend and DB queries |
 
----
+## Key Conventions
 
-## Development Conventions
-
-- **One PR per feature** — each step in a phase is a separate pull request
-- **Database migrations** as SQL files in `/supabase/migrations` — tracked in git
-- **No hardcoded data** — account types, payment methods, categories are always database-driven
-- **Soft deletes everywhere** — archive flag, never hard delete user data
-- **`org_id` on every table** — multi-user support is a permission layer, not a schema rewrite
+- **Server actions** for all data mutations (no separate API routes)
+- **Database migrations** as SQL files in `/supabase/migrations/` — tracked in git
+- **Soft deletes** everywhere — `archived` flag, data never destroyed
+- **No hardcoded values** — payment methods, account types, categories are data, not code
+- **Vercel auto-deploys** on every push to `main`; never push broken code

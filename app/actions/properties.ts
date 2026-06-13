@@ -11,12 +11,12 @@ export async function createProperty(formData: FormData) {
 
   const { error } = await supabase.from('properties').insert({
     address: formData.get('address') as string,
-    city: formData.get('city') as string,
-    state: formData.get('state') as string,
-    zip: formData.get('zip') as string,
-    purchase_date: formData.get('purchase_date') || null,
+    city: (formData.get('city') as string) || null,
+    state: (formData.get('state') as string) || null,
+    zip: (formData.get('zip') as string) || null,
+    purchase_date: (formData.get('purchase_date') as string) || null,
     purchase_price: formData.get('purchase_price') ? Number(formData.get('purchase_price')) : null,
-    notes: formData.get('notes') as string,
+    notes: (formData.get('notes') as string) || null,
   })
 
   if (error) return { error: error.message }
@@ -31,12 +31,12 @@ export async function updateProperty(id: string, formData: FormData) {
 
   const { error } = await supabase.from('properties').update({
     address: formData.get('address') as string,
-    city: formData.get('city') as string,
-    state: formData.get('state') as string,
-    zip: formData.get('zip') as string,
-    purchase_date: formData.get('purchase_date') || null,
+    city: (formData.get('city') as string) || null,
+    state: (formData.get('state') as string) || null,
+    zip: (formData.get('zip') as string) || null,
+    purchase_date: (formData.get('purchase_date') as string) || null,
     purchase_price: formData.get('purchase_price') ? Number(formData.get('purchase_price')) : null,
-    notes: formData.get('notes') as string,
+    notes: (formData.get('notes') as string) || null,
   }).eq('id', id)
 
   if (error) return { error: error.message }

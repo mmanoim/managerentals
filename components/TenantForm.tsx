@@ -8,9 +8,9 @@ interface TenantFormProps {
   defaultValues?: {
     first_name?: string
     last_name?: string
-    email?: string
-    phone?: string
-    notes?: string
+    email?: string | null
+    phone?: string | null
+    notes?: string | null
   }
 }
 
@@ -50,19 +50,19 @@ export default function TenantForm({ action, defaultValues }: TenantFormProps) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
-          <input name="email" type="email" defaultValue={defaultValues?.email}
+          <input name="email" type="email" defaultValue={defaultValues?.email ?? undefined}
             className={inputClass} placeholder="jane@email.com" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Phone</label>
-          <input name="phone" type="tel" defaultValue={defaultValues?.phone}
+          <input name="phone" type="tel" defaultValue={defaultValues?.phone ?? undefined}
             className={inputClass} placeholder="(555) 000-0000" />
         </div>
       </div>
 
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>
-        <textarea name="notes" rows={3} defaultValue={defaultValues?.notes}
+        <textarea name="notes" rows={3} defaultValue={defaultValues?.notes ?? undefined}
           className={`${inputClass} resize-none`}
           placeholder="Any additional notes…" />
       </div>

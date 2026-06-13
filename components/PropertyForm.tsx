@@ -7,12 +7,12 @@ interface PropertyFormProps {
   action: (formData: FormData) => Promise<{ error: string } | void>
   defaultValues?: {
     address?: string
-    city?: string
-    state?: string
-    zip?: string
-    purchase_date?: string
-    purchase_price?: number
-    notes?: string
+    city?: string | null
+    state?: string | null
+    zip?: string | null
+    purchase_date?: string | null
+    purchase_price?: number | null
+    notes?: string | null
   }
 }
 
@@ -44,13 +44,13 @@ export default function PropertyForm({ action, defaultValues }: PropertyFormProp
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">City</label>
-          <input name="city" defaultValue={defaultValues?.city}
+          <input name="city" defaultValue={defaultValues?.city ?? undefined}
             className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
             placeholder="Springfield" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">State</label>
-          <input name="state" defaultValue={defaultValues?.state} maxLength={2}
+          <input name="state" defaultValue={defaultValues?.state ?? undefined} maxLength={2}
             className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
             placeholder="NJ" />
         </div>
@@ -59,13 +59,13 @@ export default function PropertyForm({ action, defaultValues }: PropertyFormProp
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">ZIP code</label>
-          <input name="zip" defaultValue={defaultValues?.zip}
+          <input name="zip" defaultValue={defaultValues?.zip ?? undefined}
             className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
             placeholder="07000" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Purchase date</label>
-          <input name="purchase_date" type="date" defaultValue={defaultValues?.purchase_date?.split('T')[0]}
+          <input name="purchase_date" type="date" defaultValue={defaultValues?.purchase_date?.split('T')[0] ?? undefined}
             className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm" />
         </div>
       </div>
@@ -74,7 +74,7 @@ export default function PropertyForm({ action, defaultValues }: PropertyFormProp
         <label className="block text-sm font-medium text-slate-700 mb-1.5">Purchase price</label>
         <div className="relative">
           <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">$</span>
-          <input name="purchase_price" type="number" step="0.01" defaultValue={defaultValues?.purchase_price}
+          <input name="purchase_price" type="number" step="0.01" defaultValue={defaultValues?.purchase_price ?? undefined}
             className="w-full pl-7 pr-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
             placeholder="0.00" />
         </div>
@@ -82,7 +82,7 @@ export default function PropertyForm({ action, defaultValues }: PropertyFormProp
 
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>
-        <textarea name="notes" rows={3} defaultValue={defaultValues?.notes}
+        <textarea name="notes" rows={3} defaultValue={defaultValues?.notes ?? undefined}
           className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm resize-none"
           placeholder="Any additional notes about this property…" />
       </div>

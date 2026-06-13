@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 interface Tenant { id: string; first_name: string; last_name: string }
-interface Property { id: string; address: string; city: string }
+interface Property { id: string; address: string; city: string | null }
 interface Unit { id: string; unit_label: string; property_id: string; monthly_rent: number | null }
 
 interface Props {
