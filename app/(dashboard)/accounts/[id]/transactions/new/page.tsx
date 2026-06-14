@@ -8,10 +8,11 @@ export default async function NewTransactionPage({ params }: { params: Promise<{
   const { id } = await params
   const supabase = await createClient()
 
-  const [{ data: account }, { data: categories }, { data: properties }] = await Promise.all([
+  const [{ data: account }, { data: categories }, { data: properties }, { data: allAccounts }] = await Promise.all([
     supabase.from('accounts').select('id, name').eq('id', id).single(),
     supabase.from('chart_of_accounts').select('id, code, name').eq('archived', false).order('code'),
     supabase.from('properties').select('id, address').eq('archived', false).order('address'),
+    supabase.from('accounts').select('id, name').eq('is_active', true).neq('id', id).order('name'),
   ])
 
   if (!account) notFound()
@@ -34,6 +35,7 @@ export default async function NewTransactionPage({ params }: { params: Promise<{
         action={createWithId}
         categories={categories ?? []}
         properties={properties ?? []}
+        accounts={allAccounts ?? []}
       />
     </div>
   )

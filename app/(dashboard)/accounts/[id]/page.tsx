@@ -11,7 +11,7 @@ const OWNER_LABELS: Record<string, string> = {
   joint: 'Joint', marina: 'Marina', jacob: 'Jacob',
 }
 const SOURCE_LABELS: Record<string, string> = {
-  csv: 'CSV', pdf: 'PDF',
+  csv: 'CSV', pdf: 'PDF', tenant_payment: 'Tenant',
 }
 
 function fmtCurrency(amount: number) {
@@ -218,7 +218,12 @@ export default async function AccountRegisterPage({
                         {tx.notes && (
                           <p className="text-xs text-slate-400 truncate">{tx.notes}</p>
                         )}
-                        {tx.source !== 'manual' && SOURCE_LABELS[tx.source] && (
+                        {tx.transfer_pair_id && (
+                          <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 flex-shrink-0">
+                            ⇄ Transfer
+                          </span>
+                        )}
+                        {!tx.transfer_pair_id && tx.source !== 'manual' && SOURCE_LABELS[tx.source] && (
                           <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 flex-shrink-0">
                             {SOURCE_LABELS[tx.source]}
                           </span>

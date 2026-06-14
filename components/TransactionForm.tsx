@@ -6,18 +6,21 @@ import { type Tables } from '@/lib/supabase/types'
 
 interface Category { id: string; code: string; name: string }
 interface Property { id: string; address: string }
+interface Account  { id: string; name: string }
 
 interface TransactionFormProps {
   action: (formData: FormData) => Promise<{ error: string } | void>
   categories: Category[]
   properties: Property[]
+  accounts?: Account[]          // other accounts available for transfers
   defaultValues?: Partial<Tables<'account_transactions'>>
 }
 
-export default function TransactionForm({ action, categories, properties, defaultValues }: TransactionFormProps) {
+export default function TransactionForm({ action, categories, properties, accounts, defaultValues }: TransactionFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isTransfer, setIsTransfer] = useState(false)
 
   // Derive initial direction from the stored amount sign (edit mode)
   const storedAmount = defaultValues?.amount !== undefined ? Number(defaultValues.amount) : undefined
@@ -99,40 +102,79 @@ export default function TransactionForm({ action, categories, properties, defaul
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1.5">Description *</label>
-        <input name="description" required
-          defaultValue={defaultValues?.description ?? undefined}
-          className={inputClass}
-          placeholder="e.g. Rent from Unit 1, Plumber – kitchen sink, Insurance payment" />
-      </div>
+      {/* Transfer toggle — only shown when other accounts are available */}
+      {accounts && accounts.length > 0 && !defaultValues?.id && (
+        <div className="flex items-center gap-3 py-1">
+          <button
+            type="button"
+            onClick={() => setIsTransfer(t => !t)}
+            className={`relative inline-flex h-5 w-9 flex-shrink-0 rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+              isTransfer ? 'bg-indigo-600' : 'bg-slate-200'
+            }`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+              isTransfer ? 'translate-x-4' : 'translate-x-0'
+            }`} />
+          </button>
+          <span className="text-sm font-medium text-slate-700">This is a transfer between accounts</span>
+        </div>
+      )}
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
-          <select name="category_id"
-            defaultValue={defaultValues?.category_id ?? ''}
-            className={`${inputClass} bg-white`}
-          >
-            <option value="">— Uncategorized —</option>
-            {categories.map(c => (
-              <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1.5">Property</label>
-          <select name="property_id"
-            defaultValue={defaultValues?.property_id ?? ''}
-            className={`${inputClass} bg-white`}
-          >
-            <option value="">— None —</option>
-            {properties.map(p => (
-              <option key={p.id} value={p.id}>{p.address}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      {isTransfer ? (
+        <>
+          <input type="hidden" name="direction" value="out" />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Transfer to *</label>
+            <select name="transfer_to_account_id" required className={`${inputClass} bg-white`}>
+              <option value="">Select destination account…</option>
+              {(accounts ?? []).map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-400 mt-1.5">
+              A matching deposit will be created automatically in the destination account.
+            </p>
+          </div>
+        </>
+      ) : (
+        <>
+          <input type="hidden" name="transfer_to_account_id" value="" />
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">Description *</label>
+            <input name="description" required
+              defaultValue={defaultValues?.description ?? undefined}
+              className={inputClass}
+              placeholder="e.g. Rent from Unit 1, Plumber – kitchen sink, Insurance payment" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Category</label>
+              <select name="category_id"
+                defaultValue={defaultValues?.category_id ?? ''}
+                className={`${inputClass} bg-white`}
+              >
+                <option value="">— Uncategorized —</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Property</label>
+              <select name="property_id"
+                defaultValue={defaultValues?.property_id ?? ''}
+                className={`${inputClass} bg-white`}
+              >
+                <option value="">— None —</option>
+                {properties.map(p => (
+                  <option key={p.id} value={p.id}>{p.address}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-slate-700 mb-1.5">Notes</label>

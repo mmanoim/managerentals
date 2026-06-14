@@ -20,6 +20,48 @@ function txPayload(formData: FormData) {
 }
 
 export async function createTransaction(accountId: string, formData: FormData) {
+  const transferToId = (formData.get('transfer_to_account_id') as string) || null
+
+  if (transferToId) {
+    const supabase = await createClient()
+    const { data: accts } = await supabase
+      .from('accounts')
+      .select('id, name')
+      .in('id', [accountId, transferToId])
+
+    const fromName = accts?.find(a => a.id === accountId)?.name ?? 'source'
+    const toName   = accts?.find(a => a.id === transferToId)?.name ?? 'destination'
+    const rawAmount = parseFloat(formData.get('amount') as string)
+    const date  = formData.get('date') as string
+    const notes = (formData.get('notes') as string) || null
+    const pairId = crypto.randomUUID()
+
+    const { error } = await supabase.from('account_transactions').insert([
+      {
+        account_id: accountId,
+        date,
+        description: `Transfer to ${toName}`,
+        amount: -Math.abs(rawAmount),
+        source: 'manual' as const,
+        transfer_pair_id: pairId,
+        notes,
+      },
+      {
+        account_id: transferToId,
+        date,
+        description: `Transfer from ${fromName}`,
+        amount: Math.abs(rawAmount),
+        source: 'manual' as const,
+        transfer_pair_id: pairId,
+        notes,
+      },
+    ])
+    if (error) return { error: error.message }
+    revalidatePath(`/accounts/${accountId}`)
+    revalidatePath(`/accounts/${transferToId}`)
+    redirect(`/accounts/${accountId}`)
+  }
+
   const supabase = await createClient()
   const { error } = await supabase
     .from('account_transactions')

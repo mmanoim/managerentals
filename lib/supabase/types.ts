@@ -29,6 +29,7 @@ export type Database = {
           reconciled: boolean
           source: string
           source_payment_part_id: string | null
+          transfer_pair_id: string | null
         }
         Insert: {
           account_id: string
@@ -44,6 +45,7 @@ export type Database = {
           reconciled?: boolean
           source?: string
           source_payment_part_id?: string | null
+          transfer_pair_id?: string | null
         }
         Update: {
           account_id?: string
@@ -59,6 +61,7 @@ export type Database = {
           reconciled?: boolean
           source?: string
           source_payment_part_id?: string | null
+          transfer_pair_id?: string | null
         }
         Relationships: [
           {
