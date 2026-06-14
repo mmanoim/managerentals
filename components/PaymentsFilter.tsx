@@ -9,11 +9,11 @@ interface Props {
 }
 
 const METHODS = [
-  { value: 'check',   label: 'Check' },
-  { value: 'cash',    label: 'Cash' },
-  { value: 'cashapp', label: 'Cash App' },
-  { value: 'zelle',   label: 'Zelle' },
-  { value: 'venmo',   label: 'Venmo' },
+  { value: 'td_business', label: 'TD Business' },
+  { value: 'cash',        label: 'Cash' },
+  { value: 'cashapp',     label: 'Cash App' },
+  { value: 'zelle',       label: 'Zelle' },
+  { value: 'venmo',       label: 'Venmo' },
 ]
 
 const sel = 'px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'

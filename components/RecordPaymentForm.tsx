@@ -4,11 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 const METHODS = [
-  { value: 'check',   label: 'Check',    ref: 'Check #' },
-  { value: 'cash',    label: 'Cash',     ref: null },
-  { value: 'cashapp', label: 'Cash App', ref: 'Transaction ref' },
-  { value: 'zelle',   label: 'Zelle',    ref: 'Transaction ref' },
-  { value: 'venmo',   label: 'Venmo',    ref: 'Transaction ref' },
+  { value: 'td_business', label: 'TD Business', ref: 'Check #' },
+  { value: 'cash',        label: 'Cash',         ref: null },
+  { value: 'cashapp',     label: 'Cash App',     ref: 'Transaction ref' },
+  { value: 'zelle',       label: 'Zelle',        ref: 'Transaction ref' },
+  { value: 'venmo',       label: 'Venmo',        ref: 'Transaction ref' },
 ]
 
 interface Part { key: string; method: string; amount: string; reference: string }

@@ -28,6 +28,7 @@ export type Database = {
           property_id: string | null
           reconciled: boolean
           source: string
+          source_payment_part_id: string | null
         }
         Insert: {
           account_id: string
@@ -42,6 +43,7 @@ export type Database = {
           property_id?: string | null
           reconciled?: boolean
           source?: string
+          source_payment_part_id?: string | null
         }
         Update: {
           account_id?: string
@@ -56,6 +58,7 @@ export type Database = {
           property_id?: string | null
           reconciled?: boolean
           source?: string
+          source_payment_part_id?: string | null
         }
         Relationships: [
           {
@@ -79,6 +82,13 @@ export type Database = {
             referencedRelation: "properties"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "account_transactions_source_payment_part_id_fkey"
+            columns: ["source_payment_part_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_payment_parts"
+            referencedColumns: ["id"]
+          },
         ]
       }
       accounts: {
@@ -91,6 +101,7 @@ export type Database = {
           name: string
           opening_balance: number
           owner: string
+          payment_method: string | null
           type: string
         }
         Insert: {
@@ -102,6 +113,7 @@ export type Database = {
           name: string
           opening_balance?: number
           owner?: string
+          payment_method?: string | null
           type: string
         }
         Update: {
@@ -113,6 +125,7 @@ export type Database = {
           name?: string
           opening_balance?: number
           owner?: string
+          payment_method?: string | null
           type?: string
         }
         Relationships: []
@@ -490,7 +503,13 @@ export type Database = {
     }
     Enums: {
       lease_status: "active" | "expired" | "terminated"
-      payment_method: "check" | "cash" | "cashapp" | "zelle" | "venmo"
+      payment_method:
+        | "check"
+        | "cash"
+        | "cashapp"
+        | "zelle"
+        | "venmo"
+        | "td_business"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -523,13 +542,13 @@ export type Tables<
     : never
   : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
         DefaultSchema["Views"])
-  ? (DefaultSchema["Tables"] &
-      DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
-      Row: infer R
-    }
-    ? R
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
     : never
-  : never
 
 export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
@@ -549,12 +568,12 @@ export type TablesInsert<
     ? I
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-      Insert: infer I
-    }
-    ? I
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
     : never
-  : never
 
 export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
@@ -574,12 +593,12 @@ export type TablesUpdate<
     ? U
     : never
   : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
-  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
-      Update: infer U
-    }
-    ? U
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
     : never
-  : never
 
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
@@ -595,8 +614,8 @@ export type Enums<
 }
   ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
   : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
-  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
-  : never
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
@@ -612,14 +631,21 @@ export type CompositeTypes<
 }
   ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
-  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
-  : never
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
 
 export const Constants = {
   public: {
     Enums: {
       lease_status: ["active", "expired", "terminated"],
-      payment_method: ["check", "cash", "cashapp", "zelle", "venmo"],
+      payment_method: [
+        "check",
+        "cash",
+        "cashapp",
+        "zelle",
+        "venmo",
+        "td_business",
+      ],
     },
   },
 } as const

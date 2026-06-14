@@ -53,8 +53,55 @@ export async function recordPayment(leaseId: string, formData: FormData) {
   if (error) return { error: error.message }
 
   const partRows = parts.map(p => ({ ledger_entry_id: entry.id, ...p }))
-  const { error: partsError } = await supabase.from('ledger_payment_parts').insert(partRows)
+  const { data: insertedParts, error: partsError } = await supabase
+    .from('ledger_payment_parts')
+    .insert(partRows)
+    .select('id, method, amount')
   if (partsError) return { error: partsError.message }
+
+  // Fetch lease → unit → property and primary tenant for account transaction description
+  const { data: lease } = await supabase
+    .from('leases')
+    .select('unit:units(property_id, property:properties(address)), lease_tenants(is_primary, tenant:tenants(first_name, last_name))')
+    .eq('id', leaseId)
+    .single()
+
+  const propertyId = (lease?.unit as any)?.property_id ?? null
+  const propertyAddress = (lease?.unit as any)?.property?.address ?? ''
+  const primaryTenant = ((lease?.lease_tenants as any[]) ?? [])
+    .sort((a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))[0]
+  const tenantName = primaryTenant
+    ? `${primaryTenant.tenant.first_name} ${primaryTenant.tenant.last_name}`
+    : 'Tenant'
+
+  // Fetch account mapping (payment_method → account_id)
+  const { data: accountRows } = await supabase
+    .from('accounts')
+    .select('id, payment_method')
+    .not('payment_method', 'is', null)
+
+  const methodToAccountId: Record<string, string> = {}
+  for (const row of accountRows ?? []) {
+    if (row.payment_method) methodToAccountId[row.payment_method] = row.id
+  }
+
+  // Auto-create an account_transaction for each payment part that has a mapped account
+  const txRows = (insertedParts ?? [])
+    .filter(p => methodToAccountId[p.method])
+    .map(p => ({
+      account_id: methodToAccountId[p.method],
+      date: entry_date,
+      description: `Rent — ${tenantName}${propertyAddress ? ` · ${propertyAddress}` : ''}`,
+      amount: p.amount,
+      property_id: propertyId,
+      source: 'tenant_payment',
+      source_payment_part_id: p.id,
+      reconciled: false,
+    }))
+
+  if (txRows.length > 0) {
+    await supabase.from('account_transactions').insert(txRows)
+  }
 
   revalidatePath(`/leases/${leaseId}/edit`)
   redirect(`/leases/${leaseId}/edit`)
