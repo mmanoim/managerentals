@@ -146,43 +146,52 @@ export default function ReconcileSession({
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 py-3 whitespace-nowrap">Date</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-2 py-3">Description</th>
                 <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Amount</th>
+                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3 whitespace-nowrap">Balance</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {transactions.map(tx => {
-                const isChecked = checked.has(tx.id)
-                return (
-                  <tr
-                    key={tx.id}
-                    onClick={() => toggle(tx.id)}
-                    className={`cursor-pointer transition-colors ${isChecked ? 'bg-indigo-50 hover:bg-indigo-50' : 'hover:bg-slate-50'}`}
-                  >
-                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggle(tx.id)}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                    </td>
-                    <td className="px-2 py-3 text-slate-500 whitespace-nowrap tabular-nums">
-                      {fmtDate(tx.date)}
-                    </td>
-                    <td className="px-2 py-3 max-w-xs">
-                      <p className={`truncate ${isChecked ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
-                        {tx.description}
-                      </p>
-                    </td>
-                    <td className={`px-4 py-3 text-right font-medium tabular-nums whitespace-nowrap ${tx.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {tx.amount >= 0 ? '+' : ''}{fmtCurrency(tx.amount)}
-                    </td>
-                  </tr>
-                )
-              })}
+              {(() => {
+                let running = clearedBalance
+                return transactions.map(tx => {
+                  running += tx.amount
+                  const balance = running
+                  const isChecked = checked.has(tx.id)
+                  return (
+                    <tr
+                      key={tx.id}
+                      onClick={() => toggle(tx.id)}
+                      className={`cursor-pointer transition-colors ${isChecked ? 'bg-indigo-50 hover:bg-indigo-50' : 'hover:bg-slate-50'}`}
+                    >
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggle(tx.id)}
+                          className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                        />
+                      </td>
+                      <td className="px-2 py-3 text-slate-500 whitespace-nowrap tabular-nums">
+                        {fmtDate(tx.date)}
+                      </td>
+                      <td className="px-2 py-3 max-w-xs">
+                        <p className={`truncate ${isChecked ? 'text-indigo-900 font-medium' : 'text-slate-700'}`}>
+                          {tx.description}
+                        </p>
+                      </td>
+                      <td className={`px-4 py-3 text-right font-medium tabular-nums whitespace-nowrap ${tx.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {tx.amount >= 0 ? '+' : ''}{fmtCurrency(tx.amount)}
+                      </td>
+                      <td className="px-4 py-3 text-right tabular-nums whitespace-nowrap text-slate-600 text-xs">
+                        {fmtCurrency(balance)}
+                      </td>
+                    </tr>
+                  )
+                })
+              })()}
             </tbody>
             <tfoot>
               <tr className="border-t border-slate-100 bg-slate-50">
-                <td colSpan={4} className="px-4 py-3 text-xs text-slate-500 flex items-center gap-2">
+                <td colSpan={5} className="px-4 py-3 text-xs text-slate-500 flex items-center gap-2">
                   <span>{checked.size} of {transactions.length} selected</span>
                   {checked.size > 0 && (
                     <span className="text-slate-400">
