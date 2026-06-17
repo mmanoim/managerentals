@@ -75,7 +75,8 @@ export default async function AccountRegisterPage({
   let filtered = withBalance
   if (date_from)   filtered = filtered.filter(tx => tx.date >= date_from)
   if (date_to)     filtered = filtered.filter(tx => tx.date <= date_to)
-  if (category_id) filtered = filtered.filter(tx => tx.category_id === category_id)
+  if (category_id === 'none') filtered = filtered.filter(tx => !tx.category_id)
+  else if (category_id)      filtered = filtered.filter(tx => tx.category_id === category_id)
   if (reconciled === 'yes') filtered = filtered.filter(tx => tx.reconciled)
   if (reconciled === 'no')  filtered = filtered.filter(tx => !tx.reconciled)
 
@@ -149,6 +150,7 @@ export default async function AccountRegisterPage({
           <select name="category_id" defaultValue={category_id ?? ''}
             className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
             <option value="">All categories</option>
+            <option value="none">— Uncategorized —</option>
             {(categories ?? []).map(c => (
               <option key={c.id} value={c.id}>{c.code} · {c.name}</option>
             ))}
