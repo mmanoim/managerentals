@@ -6,9 +6,11 @@ const TYPE_LABEL: Record<string, string> = {
   income:   'Income',
   expense:  'Expense',
   transfer: 'Transfer',
+  equity:   'Equity',
+  partner:  'Partner',
 }
 
-const TYPE_ORDER = ['income', 'expense', 'transfer']
+const TYPE_ORDER = ['income', 'expense', 'transfer', 'equity', 'partner']
 
 export default async function CategoriesPage() {
   const supabase = await createClient()
