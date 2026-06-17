@@ -3,9 +3,11 @@
 import { useActionState } from 'react'
 
 const TYPE_OPTIONS = [
-  { value: 'income',   label: 'Income' },
-  { value: 'expense',  label: 'Expense' },
-  { value: 'transfer', label: 'Transfer' },
+  { value: 'income',   label: 'Income (P&L)' },
+  { value: 'expense',  label: 'Expense (P&L)' },
+  { value: 'equity',   label: 'Equity (Balance Sheet)' },
+  { value: 'transfer', label: 'Transfer (not P&L)' },
+  { value: 'partner',  label: 'Partner' },
 ]
 
 interface DefaultValues {
