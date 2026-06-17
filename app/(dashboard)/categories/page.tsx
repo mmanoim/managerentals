@@ -3,14 +3,15 @@ import Link from 'next/link'
 import { archiveCategory } from '@/app/actions/categories'
 
 const TYPE_LABEL: Record<string, string> = {
-  income:   'Income',
-  expense:  'Expense',
-  transfer: 'Transfer',
-  equity:   'Equity',
-  partner:  'Partner',
+  income:    'Income',
+  expense:   'Expense',
+  liability: 'Liability',
+  equity:    'Equity',
+  transfer:  'Transfer',
+  partner:   'Partner',
 }
 
-const TYPE_ORDER = ['income', 'expense', 'transfer', 'equity', 'partner']
+const TYPE_ORDER = ['income', 'expense', 'liability', 'equity', 'transfer', 'partner']
 
 export default async function CategoriesPage() {
   const supabase = await createClient()
