@@ -1,17 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import DeleteEntryButton from '@/components/DeleteEntryButton'
-import { deleteTransaction } from '@/app/actions/account_transactions'
+import InlineRegisterTable from '@/components/InlineRegisterTable'
 
 const TYPE_LABELS: Record<string, string> = {
-  bank: 'Bank Account', payapp: 'Payment App', cash: 'Cash', credit: 'Credit Card',
+  bank: 'Bank Account', payapp: 'Payment App', cash: 'Cash', credit: 'Credit Card', partner: 'Partner Account',
 }
 const OWNER_LABELS: Record<string, string> = {
   joint: 'Joint', marina: 'Marina', jacob: 'Jacob',
-}
-const SOURCE_LABELS: Record<string, string> = {
-  csv: 'CSV', pdf: 'PDF', tenant_payment: 'Tenant',
 }
 
 function fmtCurrency(amount: number) {
@@ -48,6 +44,22 @@ export default async function AccountRegisterPage({
       .eq('archived', false)
       .order('code'),
   ])
+
+  // For transactions with a transfer_pair_id, check if the other side is a partner account
+  const pairIds = (allTx ?? []).map(t => t.transfer_pair_id).filter(Boolean) as string[]
+  const partnerPairIds = new Set<string>()
+  if (pairIds.length > 0) {
+    const { data: linkedTx } = await supabase
+      .from('account_transactions')
+      .select('transfer_pair_id, accounts!account_id(type)')
+      .in('transfer_pair_id', pairIds)
+      .neq('account_id', id)
+    for (const lt of linkedTx ?? []) {
+      if ((lt.accounts as any)?.type === 'partner') {
+        partnerPairIds.add(lt.transfer_pair_id!)
+      }
+    }
+  }
 
   if (!account) notFound()
 
@@ -190,97 +202,28 @@ export default async function AccountRegisterPage({
           )}
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-slate-100">
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3 whitespace-nowrap">Date</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Description</th>
-                <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Category</th>
-                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Amount</th>
-                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Balance</th>
-                <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide px-3 py-3">✓</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {displayRows.map((tx: any) => {
-                const cat = tx.category as { id: string; code: string; name: string } | null
-                const deleteAction = deleteTransaction.bind(null, id, tx.id)
-                return (
-                  <tr key={tx.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-5 py-3 text-slate-500 whitespace-nowrap tabular-nums">
-                      {fmtDate(tx.date)}
-                    </td>
-                    <td className="px-4 py-3 max-w-xs">
-                      <p className="text-slate-900 font-medium truncate">{tx.description}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        {tx.notes && (
-                          <p className="text-xs text-slate-400 truncate">{tx.notes}</p>
-                        )}
-                        {tx.transfer_pair_id && (
-                          <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 flex-shrink-0">
-                            ⇄ Transfer
-                          </span>
-                        )}
-                        {!tx.transfer_pair_id && tx.source !== 'manual' && SOURCE_LABELS[tx.source] && (
-                          <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 flex-shrink-0">
-                            {SOURCE_LABELS[tx.source]}
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      {cat
-                        ? <span className="text-xs text-slate-500">{cat.code} · {cat.name}</span>
-                        : <span className="text-slate-300">—</span>}
-                    </td>
-                    <td className={`px-4 py-3 text-right font-medium tabular-nums whitespace-nowrap ${Number(tx.amount) >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {Number(tx.amount) >= 0 ? '+' : ''}{fmtCurrency(Number(tx.amount))}
-                    </td>
-                    <td className="px-5 py-3 text-right tabular-nums text-slate-700 whitespace-nowrap">
-                      {fmtCurrency(tx.running_balance)}
-                    </td>
-                    <td className="px-3 py-3 text-center">
-                      {tx.reconciled
-                        ? <span title="Reconciled" className="inline-flex text-emerald-500">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </span>
-                        : <span title="Unreconciled" className="inline-flex text-slate-200">
-                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                              <circle cx="12" cy="12" r="4" />
-                            </svg>
-                          </span>
-                      }
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-3">
-                        <Link href={`/accounts/${id}/transactions/${tx.id}/edit`}
-                          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                          Edit
-                        </Link>
-                        <DeleteEntryButton action={deleteAction as any} />
-                      </div>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-
-          {/* Footer */}
-          <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex justify-between items-center text-xs text-slate-500">
-            <span>
-              {filtered.length} transaction{filtered.length !== 1 ? 's' : ''}
-              {hasFilters ? ` of ${withBalance.length} total` : ''}
-            </span>
-            <span>
-              Opening balance: <span className="font-medium text-slate-700">{fmtCurrency(Number(account.opening_balance))}</span>
-            </span>
-          </div>
-        </div>
+        <InlineRegisterTable
+          accountId={id}
+          rows={displayRows.map((tx: any) => ({
+            id: tx.id,
+            date: tx.date,
+            description: tx.description,
+            payee: tx.payee ?? null,
+            check_number: tx.check_number ?? null,
+            notes: tx.notes ?? null,
+            amount: Number(tx.amount),
+            running_balance: tx.running_balance,
+            reconciled: tx.reconciled,
+            source: tx.source,
+            transfer_pair_id: tx.transfer_pair_id ?? null,
+            category_id: (tx.category as any)?.id ?? null,
+          }))}
+          categories={categories ?? []}
+          partnerPairIds={partnerPairIds}
+          totalCount={withBalance.length}
+          hasFilters={!!hasFilters}
+          openingBalance={Number(account.opening_balance)}
+        />
       )}
     </div>
   )

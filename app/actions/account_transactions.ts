@@ -9,13 +9,15 @@ function txPayload(formData: FormData) {
   const direction = formData.get('direction') as string
   const amount = direction === 'out' ? -Math.abs(rawAmount) : Math.abs(rawAmount)
   return {
-    date:        formData.get('date') as string,
-    description: formData.get('description') as string,
+    date:         formData.get('date') as string,
+    description:  formData.get('description') as string,
     amount,
-    category_id: (formData.get('category_id') as string) || null,
-    property_id: (formData.get('property_id') as string) || null,
-    notes:       (formData.get('notes') as string) || null,
-    source:      'manual' as const,
+    category_id:  (formData.get('category_id') as string) || null,
+    property_id:  (formData.get('property_id') as string) || null,
+    payee:        (formData.get('payee') as string) || null,
+    check_number: (formData.get('check_number') as string) || null,
+    notes:        (formData.get('notes') as string) || null,
+    source:       'manual' as const,
   }
 }
 
@@ -72,14 +74,55 @@ export async function createTransaction(accountId: string, formData: FormData) {
 }
 
 export async function updateTransaction(accountId: string, txId: string, formData: FormData) {
+  const partnerAccountId = (formData.get('partner_account_id') as string) || null
   const supabase = await createClient()
-  const { error } = await supabase
+
+  const { data: updated, error } = await supabase
     .from('account_transactions')
     .update(txPayload(formData))
     .eq('id', txId)
+    .select('transfer_pair_id, amount, date, description')
+    .single()
   if (error) return { error: error.message }
+
+  // Create partner account entry if requested and not already linked
+  if (partnerAccountId && !updated.transfer_pair_id) {
+    const pairId = crypto.randomUUID()
+
+    const [{ data: partnerAccount }, { data: cat }] = await Promise.all([
+      supabase.from('accounts').select('name').eq('id', partnerAccountId).single(),
+      supabase.from('chart_of_accounts').select('id').eq('code', '801').single(),
+    ])
+
+    await Promise.all([
+      supabase.from('account_transactions').update({ transfer_pair_id: pairId }).eq('id', txId),
+      supabase.from('account_transactions').insert({
+        account_id: partnerAccountId,
+        date: updated.date,
+        description: `Payment taken — ${updated.description ?? ''}`.trim().replace(/—\s*$/, ''),
+        amount: updated.amount,
+        category_id: cat?.id ?? null,
+        source: 'manual' as const,
+        transfer_pair_id: pairId,
+        reconciled: false,
+      }),
+    ])
+
+    revalidatePath(`/accounts/${partnerAccountId}`)
+  }
+
   revalidatePath(`/accounts/${accountId}`)
   redirect(`/accounts/${accountId}`)
+}
+
+export async function patchTransactionCategory(txId: string, accountId: string, categoryId: string | null) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('account_transactions')
+    .update({ category_id: categoryId || null })
+    .eq('id', txId)
+  if (error) return { error: error.message }
+  revalidatePath(`/accounts/${accountId}`)
 }
 
 export async function deleteTransaction(accountId: string, txId: string) {
