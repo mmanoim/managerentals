@@ -2,6 +2,64 @@
 
 import { createClient } from '@/lib/supabase/server'
 
+export interface InquiryTx {
+  id: string
+  date: string
+  description: string
+  payee: string | null
+  amount: number
+}
+
+export interface InquiryAccount {
+  id: string
+  name: string
+  transactions: InquiryTx[]
+  total: number
+}
+
+export async function getCategoryInquiry(
+  dateFrom: string,
+  dateTo: string,
+  categoryId: string,
+  accountId: string | null,
+): Promise<{ accounts: InquiryAccount[]; net: number } | { error: string }> {
+  if (!dateFrom || !dateTo) return { error: 'Date range required' }
+  if (!categoryId) return { error: 'Select a category' }
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  let query = supabase
+    .from('account_transactions')
+    .select('id, date, description, payee, amount, account_id, account:accounts(id, name)')
+    .eq('category_id', categoryId)
+    .gte('date', dateFrom)
+    .lte('date', dateTo)
+    .order('date')
+    .order('created_at')
+
+  if (accountId) query = query.eq('account_id', accountId)
+
+  const { data: txs, error } = await query
+  if (error) return { error: error.message }
+
+  const accountMap = new Map<string, InquiryAccount>()
+  for (const tx of txs ?? []) {
+    const acct = tx.account as { id: string; name: string } | null
+    if (!acct) continue
+    if (!accountMap.has(acct.id)) {
+      accountMap.set(acct.id, { id: acct.id, name: acct.name, transactions: [], total: 0 })
+    }
+    const group = accountMap.get(acct.id)!
+    group.transactions.push({ id: tx.id, date: tx.date, description: tx.description, payee: tx.payee, amount: Number(tx.amount) })
+    group.total += Number(tx.amount)
+  }
+
+  const accounts = Array.from(accountMap.values()).sort((a, b) => a.name.localeCompare(b.name))
+  return { accounts, net: accounts.reduce((s, a) => s + a.total, 0) }
+}
+
 function escapeCSV(val: unknown): string {
   if (val === null || val === undefined) return ''
   const str = String(val)
