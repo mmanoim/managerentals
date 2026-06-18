@@ -13,14 +13,36 @@ export default async function EditTransactionPage({
   const { id, txId } = await params
   const supabase = await createClient()
 
-  const [{ data: account }, { data: tx }, { data: categories }, { data: properties }] = await Promise.all([
-    supabase.from('accounts').select('id, name').eq('id', id).single(),
+  const [{ data: account }, { data: tx }, { data: categories }, { data: properties }, { data: allAccounts }] = await Promise.all([
+    supabase.from('accounts').select('id, name, type').eq('id', id).single(),
     supabase.from('account_transactions').select('*').eq('id', txId).eq('account_id', id).single(),
     supabase.from('chart_of_accounts').select('id, code, name').eq('archived', false).order('code'),
     supabase.from('properties').select('id, address').eq('archived', false).order('address'),
+    supabase.from('accounts').select('id, name, type').eq('is_active', true).order('name'),
   ])
 
   if (!account || !tx) notFound()
+
+  // Partner accounts available for linking (only relevant when current account is not itself a partner)
+  const partnerAccounts = (account as any).type !== 'partner'
+    ? (allAccounts ?? []).filter((a: any) => a.type === 'partner')
+    : []
+
+  // If already linked via transfer_pair_id, find the other side
+  let existingPartnerLink: string | undefined
+  if (tx.transfer_pair_id && partnerAccounts.length > 0) {
+    const { data: linked } = await supabase
+      .from('account_transactions')
+      .select('account_id')
+      .eq('transfer_pair_id', tx.transfer_pair_id)
+      .neq('account_id', id)
+      .limit(1)
+      .single()
+    if (linked) {
+      const match = partnerAccounts.find((a: any) => a.id === linked.account_id)
+      if (match) existingPartnerLink = (match as any).name
+    }
+  }
 
   const updateWithIds = updateTransaction.bind(null, id, txId)
   const deleteWithIds = deleteTransaction.bind(null, id, txId)
@@ -41,6 +63,9 @@ export default async function EditTransactionPage({
         action={updateWithIds}
         categories={categories ?? []}
         properties={properties ?? []}
+        accounts={(allAccounts ?? []).filter((a: any) => a.id !== id && a.type !== 'partner')}
+        partnerAccounts={partnerAccounts}
+        existingPartnerLink={existingPartnerLink}
         defaultValues={tx}
       />
       <div className="mt-6 pt-6 border-t border-slate-200">

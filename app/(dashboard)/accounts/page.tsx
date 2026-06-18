@@ -3,10 +3,11 @@ import Link from 'next/link'
 import { toggleAccountActive } from '@/app/actions/accounts'
 
 const TYPE_GROUP_LABELS: Record<string, string> = {
-  bank:   'Bank Accounts',
-  payapp: 'Payment Apps',
-  cash:   'Cash',
-  credit: 'Credit Cards',
+  bank:    'Bank Accounts',
+  payapp:  'Payment Apps',
+  cash:    'Cash',
+  credit:  'Credit Cards',
+  partner: 'Partner Accounts',
 }
 
 const OWNER_LABELS: Record<string, string> = {
@@ -45,7 +46,7 @@ export default async function AccountsPage() {
   }))
 
   // Group by type in display order
-  const typeOrder = ['bank', 'payapp', 'cash', 'credit']
+  const typeOrder = ['bank', 'payapp', 'cash', 'credit', 'partner']
   const groups: Record<string, typeof rows> = {}
   for (const a of rows) {
     if (!groups[a.type]) groups[a.type] = []

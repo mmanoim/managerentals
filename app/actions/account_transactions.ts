@@ -1,7 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, refresh } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 function txPayload(formData: FormData) {
@@ -122,7 +122,7 @@ export async function patchTransactionCategory(txId: string, accountId: string, 
     .update({ category_id: categoryId || null })
     .eq('id', txId)
   if (error) return { error: error.message }
-  revalidatePath(`/accounts/${accountId}`)
+  refresh()
 }
 
 export async function deleteTransaction(accountId: string, txId: string) {

@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation'
 import { type Tables } from '@/lib/supabase/types'
 
 const ACCOUNT_TYPES = [
-  { value: 'bank',   label: 'Bank Account' },
-  { value: 'payapp', label: 'Payment App'  },
-  { value: 'cash',   label: 'Cash'         },
-  { value: 'credit', label: 'Credit Card'  },
+  { value: 'bank',    label: 'Bank Account'    },
+  { value: 'payapp',  label: 'Payment App'     },
+  { value: 'cash',    label: 'Cash'            },
+  { value: 'credit',  label: 'Credit Card'     },
+  { value: 'partner', label: 'Partner Account' },
 ]
 
 const OWNERS = [

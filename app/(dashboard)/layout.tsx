@@ -28,6 +28,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
                 <NavLink href="/accounts">Accounts</NavLink>
                 <NavLink href="/reconciliation">Reconciliation</NavLink>
                 <NavLink href="/categories">Categories</NavLink>
+                <NavLink href="/distributions">Distributions</NavLink>
+                <NavLink href="/reports">Reports</NavLink>
               </div>
             </div>
             <div className="flex items-center gap-4">

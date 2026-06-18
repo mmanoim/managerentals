@@ -53,19 +53,28 @@ export default function InlineRegisterTable({
   })
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set())
   const [savedIds, setSavedIds]   = useState<Set<string>>(new Set())
+  const [errorIds, setErrorIds]   = useState<Set<string>>(new Set())
   const [, startTransition] = useTransition()
 
   function handleCategoryChange(txId: string, value: string) {
     const newCatId = value || null
+    const prevCatId = categoryMap[txId] ?? null
     setCategoryMap(prev => ({ ...prev, [txId]: newCatId }))
     setSavingIds(prev => new Set(prev).add(txId))
     setSavedIds(prev => { const s = new Set(prev); s.delete(txId); return s })
+    setErrorIds(prev => { const s = new Set(prev); s.delete(txId); return s })
 
     startTransition(async () => {
-      await patchTransactionCategory(txId, accountId, newCatId)
+      const result = await patchTransactionCategory(txId, accountId, newCatId)
       setSavingIds(prev => { const s = new Set(prev); s.delete(txId); return s })
-      setSavedIds(prev => new Set(prev).add(txId))
-      setTimeout(() => setSavedIds(prev => { const s = new Set(prev); s.delete(txId); return s }), 1500)
+      if (result?.error) {
+        setCategoryMap(prev => ({ ...prev, [txId]: prevCatId }))
+        setErrorIds(prev => new Set(prev).add(txId))
+        setTimeout(() => setErrorIds(prev => { const s = new Set(prev); s.delete(txId); return s }), 3000)
+      } else {
+        setSavedIds(prev => new Set(prev).add(txId))
+        setTimeout(() => setSavedIds(prev => { const s = new Set(prev); s.delete(txId); return s }), 1500)
+      }
     })
   }
 
@@ -140,6 +149,13 @@ export default function InlineRegisterTable({
                       <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                       </svg>
+                    )}
+                    {errorIds.has(tx.id) && !saving && (
+                      <span title="Save failed">
+                        <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </span>
                     )}
                   </div>
                 </td>

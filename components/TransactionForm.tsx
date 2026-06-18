@@ -12,11 +12,13 @@ interface TransactionFormProps {
   action: (formData: FormData) => Promise<{ error: string } | void>
   categories: Category[]
   properties: Property[]
-  accounts?: Account[]          // other accounts available for transfers
+  accounts?: Account[]           // other accounts available for transfers
+  partnerAccounts?: Account[]    // partner accounts available for linking
+  existingPartnerLink?: string   // name of already-linked partner account
   defaultValues?: Partial<Tables<'account_transactions'>>
 }
 
-export default function TransactionForm({ action, categories, properties, accounts, defaultValues }: TransactionFormProps) {
+export default function TransactionForm({ action, categories, properties, accounts, partnerAccounts, existingPartnerLink, defaultValues }: TransactionFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -173,6 +175,23 @@ export default function TransactionForm({ action, categories, properties, accoun
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Payee</label>
+              <input name="payee"
+                defaultValue={(defaultValues as any)?.payee ?? undefined}
+                className={inputClass}
+                placeholder="e.g. Home Depot, USPS" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Check #</label>
+              <input name="check_number"
+                defaultValue={(defaultValues as any)?.check_number ?? undefined}
+                className={inputClass}
+                placeholder="e.g. 1042" />
+            </div>
+          </div>
         </>
       )}
 
@@ -183,6 +202,34 @@ export default function TransactionForm({ action, categories, properties, accoun
           className={`${inputClass} resize-none`}
           placeholder="Reference number, check number, or any additional detail…" />
       </div>
+
+      {/* Partner account linking — only shown on non-partner accounts */}
+      {existingPartnerLink ? (
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-2">
+          <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+          </svg>
+          <p className="text-sm text-emerald-700">
+            Linked to <span className="font-semibold">{existingPartnerLink}</span>
+          </p>
+          <input type="hidden" name="partner_account_id" value="" />
+        </div>
+      ) : partnerAccounts && partnerAccounts.length > 0 && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
+          <label className="block text-sm font-medium text-slate-700">
+            Link to partner account <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <select name="partner_account_id" className={`${inputClass} bg-white`}>
+            <option value="">— None —</option>
+            {partnerAccounts.map(a => (
+              <option key={a.id} value={a.id}>{a.name}</option>
+            ))}
+          </select>
+          <p className="text-xs text-slate-400">
+            Creates a matching entry in the selected partner account to record the payment taken.
+          </p>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</div>

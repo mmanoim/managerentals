@@ -19,12 +19,14 @@ export type Database = {
           account_id: string
           amount: number
           category_id: string | null
+          check_number: string | null
           created_at: string
           date: string
           description: string
           id: string
           import_batch_id: string | null
           notes: string | null
+          payee: string | null
           property_id: string | null
           reconciled: boolean
           source: string
@@ -35,12 +37,14 @@ export type Database = {
           account_id: string
           amount: number
           category_id?: string | null
+          check_number?: string | null
           created_at?: string
           date: string
           description: string
           id?: string
           import_batch_id?: string | null
           notes?: string | null
+          payee?: string | null
           property_id?: string | null
           reconciled?: boolean
           source?: string
@@ -51,12 +55,14 @@ export type Database = {
           account_id?: string
           amount?: number
           category_id?: string | null
+          check_number?: string | null
           created_at?: string
           date?: string
           description?: string
           id?: string
           import_batch_id?: string | null
           notes?: string | null
+          payee?: string | null
           property_id?: string | null
           reconciled?: boolean
           source?: string
@@ -170,6 +176,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      distributions: {
+        Row: {
+          amount: number
+          created_at: string
+          date: string
+          destination: string | null
+          id: string
+          notes: string | null
+          partner: string
+          source: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          date: string
+          destination?: string | null
+          id?: string
+          notes?: string | null
+          partner: string
+          source?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          date?: string
+          destination?: string | null
+          id?: string
+          notes?: string | null
+          partner?: string
+          source?: string | null
+        }
+        Relationships: []
       }
       lease_ledger_entries: {
         Row: {
