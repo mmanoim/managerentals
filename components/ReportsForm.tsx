@@ -223,23 +223,32 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
                 <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center text-sm text-slate-400">
                   No transactions found for the selected filters.
                 </div>
-              ) : (
-                <>
-                  {inqResult.accounts.map(acct => (
-                    <div key={acct.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+              ) : (() => {
+                const flatTxs = inqResult.accounts
+                  .flatMap(acct => acct.transactions.map(tx => ({ ...tx, accountName: acct.name })))
+                  .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0)
+                const balanced = Math.abs(inqResult.net) < 0.01
+                return (
+                  <>
+                    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                       <div className="px-5 py-3 bg-slate-50 border-b border-slate-100 flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-800">{acct.name}</span>
-                        <span className="text-xs text-slate-400">
-                          {acct.transactions.length} transaction{acct.transactions.length !== 1 ? 's' : ''}
-                        </span>
+                        <span className="text-sm font-semibold text-slate-700">Transactions</span>
+                        <span className="text-xs text-slate-400">{flatTxs.length} total</span>
                       </div>
                       <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-100">
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-2.5 whitespace-nowrap">Date</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-2.5 whitespace-nowrap">Account</th>
+                            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-2.5">Description</th>
+                            <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-2.5">Amount</th>
+                          </tr>
+                        </thead>
                         <tbody className="divide-y divide-slate-100">
-                          {acct.transactions.map(tx => (
+                          {flatTxs.map(tx => (
                             <tr key={tx.id} className="hover:bg-slate-50">
-                              <td className="px-5 py-2.5 text-xs text-slate-400 whitespace-nowrap w-32">
-                                {fmtDate(tx.date)}
-                              </td>
+                              <td className="px-5 py-2.5 text-xs text-slate-400 whitespace-nowrap">{fmtDate(tx.date)}</td>
+                              <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">{tx.accountName}</td>
                               <td className="px-4 py-2.5 text-slate-800">
                                 <p className="font-medium">{tx.description}</p>
                                 {tx.payee && <p className="text-xs text-slate-400">{tx.payee}</p>}
@@ -253,35 +262,34 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
                           ))}
                         </tbody>
                       </table>
-                      <div className="px-5 py-3 border-t border-slate-100 flex justify-end bg-slate-50">
-                        <span className="text-sm font-semibold text-slate-600">
-                          Subtotal:{' '}
-                          <span className={`tabular-nums ${acct.total >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
+                    </div>
+
+                    {/* Per-account subtotals + net */}
+                    <div className={`rounded-2xl border overflow-hidden ${balanced ? 'border-emerald-200' : 'border-amber-200'}`}>
+                      {inqResult.accounts.map((acct, i) => (
+                        <div key={acct.id} className={`px-5 py-3 flex items-center justify-between text-sm bg-white ${i > 0 ? 'border-t border-slate-100' : ''}`}>
+                          <span className="text-slate-600">{acct.name}</span>
+                          <span className={`font-semibold tabular-nums ${acct.total >= 0 ? 'text-emerald-600' : 'text-slate-900'}`}>
                             {acct.total >= 0 ? '+' : ''}{usd(acct.total)}
                           </span>
-                        </span>
-                      </div>
+                        </div>
+                      ))}
+                      {inqResult.accounts.length > 1 && (
+                        <div className={`px-5 py-3 flex items-center justify-between border-t ${
+                          balanced ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
+                        }`}>
+                          <span className={`text-sm font-semibold ${balanced ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {balanced ? '✓ Balanced — net is zero' : '⚠ Discrepancy detected'}
+                          </span>
+                          <span className={`text-base font-bold tabular-nums ${balanced ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            Net: {inqResult.net >= 0 ? '+' : ''}{usd(inqResult.net)}
+                          </span>
+                        </div>
+                      )}
                     </div>
-                  ))}
-
-                  {/* Net — only meaningful when multiple accounts shown */}
-                  {inqResult.accounts.length > 1 && (() => {
-                    const balanced = Math.abs(inqResult.net) < 0.01
-                    return (
-                      <div className={`rounded-2xl border px-5 py-4 flex items-center justify-between ${
-                        balanced ? 'bg-emerald-50 border-emerald-200' : 'bg-amber-50 border-amber-200'
-                      }`}>
-                        <span className={`text-sm font-semibold ${balanced ? 'text-emerald-700' : 'text-amber-700'}`}>
-                          {balanced ? '✓ Balanced — net is zero' : '⚠ Discrepancy detected'}
-                        </span>
-                        <span className={`text-base font-bold tabular-nums ${balanced ? 'text-emerald-700' : 'text-amber-700'}`}>
-                          Net: {inqResult.net >= 0 ? '+' : ''}{usd(inqResult.net)}
-                        </span>
-                      </div>
-                    )
-                  })()}
-                </>
-              )}
+                  </>
+                )
+              })()}
             </div>
           )}
         </div>
