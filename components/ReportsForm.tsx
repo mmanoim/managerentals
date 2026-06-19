@@ -149,7 +149,24 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
           </div>
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-4">Accounts to Include</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">Accounts to Include</h2>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={selectedAccounts.size === exportAccounts.length}
+                  ref={el => { if (el) el.indeterminate = selectedAccounts.size > 0 && selectedAccounts.size < exportAccounts.length }}
+                  onChange={() => {
+                    if (selectedAccounts.size === exportAccounts.length)
+                      setSelected(new Set())
+                    else
+                      setSelected(new Set(exportAccounts.map(a => a.id)))
+                  }}
+                  className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className="text-xs text-slate-500">All</span>
+              </label>
+            </div>
             <div className="space-y-3">
               {exportAccounts.map(acct => (
                 <label key={acct.id} className="flex items-center gap-3 cursor-pointer group">
