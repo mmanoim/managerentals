@@ -133,8 +133,34 @@ export default async function AccountRegisterPage({
       </div>
 
       {/* Filter bar */}
+      {(() => {
+        const currentYear = new Date().getFullYear()
+        const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear]
+        const yearUrl = (y: number) => {
+          const p = new URLSearchParams()
+          p.set('date_from', `${y}-01-01`)
+          p.set('date_to', `${y}-12-31`)
+          if (category_id) p.set('category_id', category_id)
+          if (reconciled)  p.set('reconciled', reconciled)
+          return `/accounts/${id}?${p.toString()}`
+        }
+        const isActiveYear = (y: number) => date_from === `${y}-01-01` && date_to === `${y}-12-31`
+        return (
       <form method="GET" action={`/accounts/${id}`}
-        className="bg-white border border-slate-200 rounded-xl px-5 py-3.5 mb-6 flex items-end gap-4 flex-wrap">
+        className="bg-white border border-slate-200 rounded-xl px-5 pt-3 pb-3.5 mb-6 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {years.map(y => (
+            <Link key={y} href={yearUrl(y)}
+              className={`px-3.5 py-1 rounded-full text-sm font-medium transition-colors ${
+                isActiveYear(y)
+                  ? 'bg-indigo-600 text-white'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}>
+              {y}
+            </Link>
+          ))}
+        </div>
+        <div className="flex items-end gap-4 flex-wrap">
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">From</label>
           <input type="date" name="date_from" defaultValue={date_from}
@@ -177,7 +203,10 @@ export default async function AccountRegisterPage({
             </Link>
           )}
         </div>
+        </div>
       </form>
+        )
+      })()}
 
       {/* Register table */}
       {displayRows.length === 0 ? (
