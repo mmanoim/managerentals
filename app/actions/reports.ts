@@ -60,6 +60,103 @@ export async function getCategoryInquiry(
   return { accounts, net: accounts.reduce((s, a) => s + a.total, 0) }
 }
 
+// ── P&L structured data ───────────────────────────────────────────────────────
+
+export interface PLData {
+  accounts: { id: string; name: string }[]
+  incomeLines: { category: string; amount: number }[]
+  totalIncome: number
+  expenseLines: { category: string; byAccount: Record<string, number>; total: number }[]
+  expenseTotalByAccount: Record<string, number>
+  totalExpenses: number
+  netIncome: number
+}
+
+type SupabaseClient = Awaited<ReturnType<typeof createClient>>
+
+async function buildPLData(
+  supabase: SupabaseClient,
+  dateFrom: string,
+  dateTo: string,
+  accountIds: string[],
+): Promise<PLData | { error: string }> {
+  const [{ data: accounts }, { data: txs }] = await Promise.all([
+    supabase.from('accounts').select('id, name').in('id', accountIds).order('name'),
+    supabase
+      .from('account_transactions')
+      .select('amount, account_id, category:chart_of_accounts(name, type)')
+      .in('account_id', accountIds)
+      .gte('date', dateFrom)
+      .lte('date', dateTo),
+  ])
+  if (!txs) return { error: 'Failed to fetch transactions' }
+
+  const accountList = accounts ?? []
+  const incomeByCategory: Record<string, number> = {}
+  const expenseByAccountCategory: Record<string, Record<string, number>> = {}
+
+  for (const tx of txs) {
+    const cat = tx.category as { name: string; type: string } | null
+    if (!cat) continue
+    const amount = Number(tx.amount)
+    if (cat.type === 'income') {
+      incomeByCategory[cat.name] = (incomeByCategory[cat.name] ?? 0) + amount
+    } else if (cat.type === 'expense') {
+      if (!expenseByAccountCategory[tx.account_id]) expenseByAccountCategory[tx.account_id] = {}
+      expenseByAccountCategory[tx.account_id][cat.name] =
+        (expenseByAccountCategory[tx.account_id][cat.name] ?? 0) + (-amount)
+    }
+  }
+
+  const incomeLines = Object.entries(incomeByCategory)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, amount]) => ({ category, amount }))
+  const totalIncome = incomeLines.reduce((s, l) => s + l.amount, 0)
+
+  const allExpenseCats = new Set<string>()
+  for (const byCat of Object.values(expenseByAccountCategory))
+    for (const cat of Object.keys(byCat)) allExpenseCats.add(cat)
+
+  const expenseTotalByAccount: Record<string, number> = {}
+  const expenseLines = Array.from(allExpenseCats).sort().map(category => {
+    let total = 0
+    const byAccount: Record<string, number> = {}
+    for (const acct of accountList) {
+      const amt = expenseByAccountCategory[acct.id]?.[category] ?? 0
+      if (amt !== 0) byAccount[acct.id] = amt
+      total += amt
+      expenseTotalByAccount[acct.id] = (expenseTotalByAccount[acct.id] ?? 0) + amt
+    }
+    return { category, byAccount, total }
+  })
+  const totalExpenses = expenseLines.reduce((s, l) => s + l.total, 0)
+
+  return {
+    accounts: accountList,
+    incomeLines,
+    totalIncome,
+    expenseLines,
+    expenseTotalByAccount,
+    totalExpenses,
+    netIncome: totalIncome - totalExpenses,
+  }
+}
+
+export async function getPLData(
+  dateFrom: string,
+  dateTo: string,
+  accountIds: string[],
+): Promise<PLData | { error: string }> {
+  if (!dateFrom || !dateTo) return { error: 'Date range required' }
+  if (accountIds.length === 0) return { error: 'Select at least one account' }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+  return buildPLData(supabase, dateFrom, dateTo, accountIds)
+}
+
+// ── CSV helpers ───────────────────────────────────────────────────────────────
+
 function escapeCSV(val: unknown): string {
   if (val === null || val === undefined) return ''
   const str = String(val)
@@ -89,100 +186,40 @@ export async function generatePLReport(
 ): Promise<{ csv: string; filename: string } | { error: string }> {
   if (!dateFrom || !dateTo) return { error: 'Date range required' }
   if (accountIds.length === 0) return { error: 'Select at least one account' }
-
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
 
-  const [{ data: accounts }, { data: txs }] = await Promise.all([
-    supabase.from('accounts').select('id, name').in('id', accountIds).order('name'),
-    supabase
-      .from('account_transactions')
-      .select('amount, account_id, category:chart_of_accounts(name, type)')
-      .in('account_id', accountIds)
-      .gte('date', dateFrom)
-      .lte('date', dateTo),
-  ])
+  const data = await buildPLData(supabase, dateFrom, dateTo, accountIds)
+  if ('error' in data) return data
 
-  if (!txs) return { error: 'Failed to fetch transactions' }
-
-  const accountList = accounts ?? []
-
-  // Accumulate income and expense by category, broken out by account
-  const incomeByCategory: Record<string, number> = {}
-  const expenseByAccountCategory: Record<string, Record<string, number>> = {}
-
-  for (const tx of txs) {
-    const cat = tx.category as { name: string; type: string } | null
-    if (!cat) continue
-    const amount = Number(tx.amount)
-
-    if (cat.type === 'income') {
-      incomeByCategory[cat.name] = (incomeByCategory[cat.name] ?? 0) + amount
-    } else if (cat.type === 'expense') {
-      if (!expenseByAccountCategory[tx.account_id]) expenseByAccountCategory[tx.account_id] = {}
-      // Negate: expense txs are negative → positive net; refund txs are positive → negative (reduces expense)
-      // Net treatment matches accountant: Utilities $7290 expense - $417 refund = $6873 net
-      expenseByAccountCategory[tx.account_id][cat.name] =
-        (expenseByAccountCategory[tx.account_id][cat.name] ?? 0) + (-amount)
-    }
-  }
-
-  const allExpenseCategories = new Set<string>()
-  for (const byCat of Object.values(expenseByAccountCategory)) {
-    for (const cat of Object.keys(byCat)) allExpenseCategories.add(cat)
-  }
-  const sortedExpenseCategories = Array.from(allExpenseCategories).sort()
+  const { accounts, incomeLines, totalIncome, expenseLines, expenseTotalByAccount, totalExpenses, netIncome } = data
 
   const lines: string[] = []
   lines.push(csvRow('P&L Statement'))
   lines.push(csvRow('Period:', `${dateFrom} to ${dateTo}`))
   lines.push('')
-
-  // --- Income ---
   lines.push(csvRow('INCOME'))
   lines.push(csvRow('Category', 'Amount'))
-  let totalIncome = 0
-  for (const [cat, amount] of Object.entries(incomeByCategory).sort()) {
-    lines.push(csvRow(cat, fmtAmt(amount)))
-    totalIncome += amount
-  }
+  for (const l of incomeLines) lines.push(csvRow(l.category, fmtAmt(l.amount)))
   lines.push(csvRow('Total Income', fmtAmt(totalIncome)))
   lines.push('')
-
-  // --- Expenses ---
   lines.push(csvRow('EXPENSES'))
-  lines.push(csvRow('Category', ...accountList.map(a => a.name), 'Total'))
-
-  let totalExpense = 0
-  const accountTotals: Record<string, number> = {}
-
-  for (const cat of sortedExpenseCategories) {
-    let catTotal = 0
-    const cells: unknown[] = [cat]
-    for (const acct of accountList) {
-      const amt = expenseByAccountCategory[acct.id]?.[cat] ?? 0
+  lines.push(csvRow('Category', ...accounts.map(a => a.name), 'Total'))
+  for (const l of expenseLines) {
+    const cells: unknown[] = [l.category]
+    for (const acct of accounts) {
+      const amt = l.byAccount[acct.id] ?? 0
       cells.push(amt > 0 ? fmtAmt(amt) : '')
-      catTotal += amt
-      accountTotals[acct.id] = (accountTotals[acct.id] ?? 0) + amt
     }
-    cells.push(fmtAmt(catTotal))
+    cells.push(fmtAmt(l.total))
     lines.push(csvRow(...cells))
-    totalExpense += catTotal
   }
-
-  lines.push(csvRow(
-    'Total Expenses',
-    ...accountList.map(a => fmtAmt(accountTotals[a.id] ?? 0)),
-    fmtAmt(totalExpense),
-  ))
+  lines.push(csvRow('Total Expenses', ...accounts.map(a => fmtAmt(expenseTotalByAccount[a.id] ?? 0)), fmtAmt(totalExpenses)))
   lines.push('')
-  lines.push(csvRow('Net Income', '', fmtAmt(totalIncome - totalExpense)))
+  lines.push(csvRow('Net Income', '', fmtAmt(netIncome)))
 
-  return {
-    csv: lines.join('\n'),
-    filename: `PL_${dateFrom}_to_${dateTo}.csv`,
-  }
+  return { csv: lines.join('\n'), filename: `PL_${dateFrom}_to_${dateTo}.csv` }
 }
 
 export async function generateTransactionsReport(

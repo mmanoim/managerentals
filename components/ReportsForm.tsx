@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { generatePLReport, generateTransactionsReport, getCategoryInquiry, type InquiryAccount } from '@/app/actions/reports'
+import { generatePLReport, generateTransactionsReport, getCategoryInquiry, getPLData, type InquiryAccount, type PLData } from '@/app/actions/reports'
 
 interface Account  { id: string; name: string; type: string }
 interface Category { id: string; code: string; name: string }
@@ -83,6 +83,8 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
   const [selectedAccounts, setSelected] = useState<Set<string>>(new Set(exportAccounts.map(a => a.id)))
   const [dlLoading, setDlLoading]       = useState<'pl' | 'transactions' | null>(null)
   const [exportError, setExportError]   = useState<string | null>(null)
+  const [plData, setPlData]             = useState<PLData | null>(null)
+  const [plLoading, setPlLoading]       = useState(false)
 
   // ── Inquiry state ───────────────────────────────────────────
   const [inqFrom, setInqFrom]           = useState(`${currentYear}-01-01`)
@@ -95,6 +97,14 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
 
   function toggleAccount(id: string) {
     setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  }
+
+  async function handleViewPL() {
+    setPlLoading(true); setExportError(null); setPlData(null)
+    const result = await getPLData(dateFrom, dateTo, Array.from(selectedAccounts))
+    if ('error' in result) setExportError(result.error)
+    else setPlData(result)
+    setPlLoading(false)
   }
 
   async function handleDownload(type: 'pl' | 'transactions') {
@@ -160,21 +170,109 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
           )}
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
-            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-2">Download</h2>
-            <p className="text-xs text-slate-400 mb-5">Files open in Excel. P&L shows income and expenses by category; Transactions lists every entry.</p>
+            <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-2">Generate</h2>
+            <p className="text-xs text-slate-400 mb-5">View P&L on screen or download either report as a CSV that opens in Excel.</p>
             <div className="flex gap-3 flex-wrap">
-              <button type="button" onClick={() => handleDownload('pl')}
-                disabled={dlLoading !== null || selectedAccounts.size === 0}
+              <button type="button" onClick={handleViewPL}
+                disabled={plLoading || dlLoading !== null || selectedAccounts.size === 0}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
-                {dlLoading === 'pl' ? <span>Generating…</span> : <><DownloadIcon /> P&amp;L Statement</>}
+                {plLoading ? 'Loading…' : 'View P&L'}
+              </button>
+              <button type="button" onClick={() => handleDownload('pl')}
+                disabled={plLoading || dlLoading !== null || selectedAccounts.size === 0}
+                className="flex items-center gap-2 border border-slate-300 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
+                {dlLoading === 'pl' ? <span>Generating…</span> : <><DownloadIcon /> P&amp;L CSV</>}
               </button>
               <button type="button" onClick={() => handleDownload('transactions')}
-                disabled={dlLoading !== null || selectedAccounts.size === 0}
+                disabled={plLoading || dlLoading !== null || selectedAccounts.size === 0}
                 className="flex items-center gap-2 border border-slate-300 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
-                {dlLoading === 'transactions' ? <span>Generating…</span> : <><DownloadIcon /> Transactions</>}
+                {dlLoading === 'transactions' ? <span>Generating…</span> : <><DownloadIcon /> Transactions CSV</>}
               </button>
             </div>
           </div>
+
+          {/* On-screen P&L */}
+          {plData && (() => {
+            const { accounts: accts, incomeLines, totalIncome, expenseLines, expenseTotalByAccount, totalExpenses, netIncome } = plData
+            const multiAccount = accts.length > 1
+            const net = netIncome
+            return (
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">P&amp;L Statement</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{dateFrom} – {dateTo}</p>
+                  </div>
+                  <button type="button" onClick={() => handleDownload('pl')}
+                    disabled={dlLoading !== null}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors">
+                    <DownloadIcon /> Download CSV
+                  </button>
+                </div>
+
+                {/* Income */}
+                <div className="px-6 pt-5 pb-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Income</p>
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {incomeLines.map(l => (
+                        <tr key={l.category} className="border-t border-slate-100">
+                          <td className="py-2 text-slate-700">{l.category}</td>
+                          <td className="py-2 text-right tabular-nums text-emerald-700 font-medium">{usd(l.amount)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-slate-300 font-semibold">
+                        <td className="py-2 text-slate-800">Total Income</td>
+                        <td className="py-2 text-right tabular-nums text-emerald-700">{usd(totalIncome)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Expenses */}
+                <div className="px-6 pt-4 pb-2">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Expenses</p>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-slate-200">
+                        <th className="text-left py-1.5 font-semibold text-slate-500 text-xs">Category</th>
+                        {multiAccount && accts.map(a => (
+                          <th key={a.id} className="text-right py-1.5 font-semibold text-slate-500 text-xs pl-4 whitespace-nowrap">{a.name}</th>
+                        ))}
+                        <th className="text-right py-1.5 font-semibold text-slate-500 text-xs pl-4">Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expenseLines.map(l => (
+                        <tr key={l.category} className="border-t border-slate-100">
+                          <td className="py-2 text-slate-700">{l.category}</td>
+                          {multiAccount && accts.map(a => (
+                            <td key={a.id} className="py-2 text-right tabular-nums text-slate-600 pl-4">
+                              {l.byAccount[a.id] ? usd(l.byAccount[a.id]) : <span className="text-slate-300">—</span>}
+                            </td>
+                          ))}
+                          <td className="py-2 text-right tabular-nums text-slate-800 font-medium pl-4">{usd(l.total)}</td>
+                        </tr>
+                      ))}
+                      <tr className="border-t-2 border-slate-300 font-semibold">
+                        <td className="py-2 text-slate-800">Total Expenses</td>
+                        {multiAccount && accts.map(a => (
+                          <td key={a.id} className="py-2 text-right tabular-nums text-slate-700 pl-4">{usd(expenseTotalByAccount[a.id] ?? 0)}</td>
+                        ))}
+                        <td className="py-2 text-right tabular-nums text-slate-800 pl-4">{usd(totalExpenses)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Net */}
+                <div className={`mx-6 mb-5 mt-3 px-4 py-3 rounded-xl flex items-center justify-between ${net >= 0 ? 'bg-emerald-50' : 'bg-red-50'}`}>
+                  <span className={`text-sm font-bold ${net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>Net Income</span>
+                  <span className={`text-lg font-bold tabular-nums ${net >= 0 ? 'text-emerald-700' : 'text-red-700'}`}>{usd(net)}</span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
