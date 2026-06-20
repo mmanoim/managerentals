@@ -548,6 +548,14 @@ export type Database = {
           balance: number
         }[]
       }
+      get_account_balances_as_of: {
+        Args: { p_date: string }
+        Returns: {
+          account_id: string
+          balance: number
+        }[]
+      }
+      get_net_income_as_of: { Args: { p_date: string }; Returns: number }
     }
     Enums: {
       lease_status: "active" | "expired" | "terminated"

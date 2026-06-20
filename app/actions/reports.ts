@@ -155,6 +155,187 @@ export async function getPLData(
   return buildPLData(supabase, dateFrom, dateTo, accountIds)
 }
 
+// ── Trial Balance ─────────────────────────────────────────────────────────────
+
+export interface TBAccount {
+  id: string
+  name: string
+  beginBalance: number
+  endBalance: number
+}
+
+export interface TrialBalanceData {
+  dateFrom: string
+  dateTo: string
+  bankAccounts: TBAccount[]
+  payAppAccounts: TBAccount[]
+  cashAccounts: TBAccount[]
+  totalCurrentAssets: { begin: number; end: number }
+  creditCardAccounts: TBAccount[]
+  liabilityAccounts: TBAccount[]
+  totalLiabilities: { begin: number; end: number }
+  partnerAccounts: TBAccount[]
+  netIncome: { begin: number; end: number }
+  totalEquity: { begin: number; end: number }
+  totalAssets: { begin: number; end: number }
+  totalLiabilitiesAndEquity: { begin: number; end: number }
+  difference: { begin: number; end: number }
+}
+
+function prevDay(dateStr: string): string {
+  const d = new Date(dateStr)
+  d.setDate(d.getDate() - 1)
+  return d.toISOString().split('T')[0]
+}
+
+export async function getTrialBalanceData(
+  dateFrom: string,
+  dateTo: string,
+): Promise<TrialBalanceData | { error: string }> {
+  if (!dateFrom || !dateTo) return { error: 'Date range required' }
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated' }
+
+  const beginDate = prevDay(dateFrom)
+
+  const [{ data: allAccounts }, beginBalances, endBalances, beginNIRes, endNIRes] = await Promise.all([
+    supabase.from('accounts').select('id, name, type, opening_balance').order('name'),
+    supabase.rpc('get_account_balances_as_of', { p_date: beginDate }),
+    supabase.rpc('get_account_balances_as_of', { p_date: dateTo }),
+    supabase.rpc('get_net_income_as_of', { p_date: beginDate }),
+    supabase.rpc('get_net_income_as_of', { p_date: dateTo }),
+  ])
+
+  if (!allAccounts) return { error: 'Failed to fetch accounts' }
+  if (beginBalances.error) return { error: beginBalances.error.message }
+  if (endBalances.error) return { error: endBalances.error.message }
+
+  const beginMap = new Map<string, number>(
+    (beginBalances.data ?? []).map(b => [b.account_id, Number(b.balance)]),
+  )
+  const endMap = new Map<string, number>(
+    (endBalances.data ?? []).map(b => [b.account_id, Number(b.balance)]),
+  )
+  const beginNI = Number(beginNIRes.data ?? 0)
+  const endNI = Number(endNIRes.data ?? 0)
+
+  function toTB(acct: { id: string; name: string; opening_balance: number }): TBAccount {
+    return {
+      id: acct.id,
+      name: acct.name,
+      beginBalance: beginMap.get(acct.id) ?? Number(acct.opening_balance),
+      endBalance: endMap.get(acct.id) ?? Number(acct.opening_balance),
+    }
+  }
+
+  const byType = (type: string) => allAccounts.filter(a => a.type === type).map(toTB)
+  const sumB = (accts: TBAccount[]) => accts.reduce((s, a) => s + a.beginBalance, 0)
+  const sumE = (accts: TBAccount[]) => accts.reduce((s, a) => s + a.endBalance, 0)
+
+  const bankAccounts   = byType('bank')
+  const payAppAccounts = byType('payapp')
+  const cashAccounts   = byType('cash')
+  // Credit card balances are negative in our system (debt owed); shown as positive in liabilities
+  const creditCardAccounts = byType('credit').map(a => ({
+    ...a, beginBalance: -a.beginBalance, endBalance: -a.endBalance,
+  }))
+  const liabilityAccounts = byType('liability')
+  const partnerAccounts   = byType('partner')
+
+  const totalCurrentAssets = {
+    begin: sumB(bankAccounts) + sumB(payAppAccounts) + sumB(cashAccounts),
+    end:   sumE(bankAccounts) + sumE(payAppAccounts) + sumE(cashAccounts),
+  }
+  const totalLiabilities = {
+    begin: sumB(creditCardAccounts) + sumB(liabilityAccounts),
+    end:   sumE(creditCardAccounts) + sumE(liabilityAccounts),
+  }
+  const totalEquity = {
+    begin: sumB(partnerAccounts) + beginNI,
+    end:   sumE(partnerAccounts) + endNI,
+  }
+  const totalLiabilitiesAndEquity = {
+    begin: totalLiabilities.begin + totalEquity.begin,
+    end:   totalLiabilities.end   + totalEquity.end,
+  }
+
+  return {
+    dateFrom,
+    dateTo,
+    bankAccounts,
+    payAppAccounts,
+    cashAccounts,
+    totalCurrentAssets,
+    creditCardAccounts,
+    liabilityAccounts,
+    totalLiabilities,
+    partnerAccounts,
+    netIncome: { begin: beginNI, end: endNI },
+    totalEquity,
+    totalAssets: totalCurrentAssets,
+    totalLiabilitiesAndEquity,
+    difference: {
+      begin: totalCurrentAssets.begin - totalLiabilitiesAndEquity.begin,
+      end:   totalCurrentAssets.end   - totalLiabilitiesAndEquity.end,
+    },
+  }
+}
+
+export async function generateTrialBalanceReport(
+  dateFrom: string,
+  dateTo: string,
+): Promise<{ csv: string; filename: string } | { error: string }> {
+  const data = await getTrialBalanceData(dateFrom, dateTo)
+  if ('error' in data) return data
+
+  const {
+    bankAccounts, payAppAccounts, cashAccounts,
+    totalCurrentAssets, creditCardAccounts, liabilityAccounts,
+    totalLiabilities, partnerAccounts, netIncome, totalEquity,
+    totalAssets, totalLiabilitiesAndEquity, difference,
+  } = data
+
+  const lines: string[] = []
+  const row = (...cells: unknown[]) => lines.push(cells.map(escapeCSV).join(','))
+  const amt = (n: number) => n.toFixed(2)
+
+  row('Trial Balance')
+  row('Period:', `${dateFrom} to ${dateTo}`)
+  row('', 'Beginning', 'Ending')
+  row('')
+  row('ASSETS')
+  row('Current Assets')
+
+  const writeGroup = (label: string, accts: TBAccount[]) => {
+    if (accts.length === 0) return
+    row(label)
+    for (const a of accts) row('', a.name, amt(a.beginBalance), amt(a.endBalance))
+    row('', `Total ${label}`, amt(accts.reduce((s,a)=>s+a.beginBalance,0)), amt(accts.reduce((s,a)=>s+a.endBalance,0)))
+  }
+
+  writeGroup('Checking / Savings', bankAccounts)
+  writeGroup('Payment Apps', payAppAccounts)
+  writeGroup('Cash', cashAccounts)
+  row('Total Current Assets', '', amt(totalCurrentAssets.begin), amt(totalCurrentAssets.end))
+  row('Total Assets', '', amt(totalAssets.begin), amt(totalAssets.end))
+  row('')
+  row('LIABILITIES & EQUITY')
+  row('Liabilities')
+  writeGroup('Credit Cards', creditCardAccounts)
+  writeGroup('Other Liabilities', liabilityAccounts)
+  row('Total Liabilities', '', amt(totalLiabilities.begin), amt(totalLiabilities.end))
+  row('Equity')
+  writeGroup('Partner Accounts', partnerAccounts)
+  row('Net Income', '', amt(netIncome.begin), amt(netIncome.end))
+  row('Total Equity', '', amt(totalEquity.begin), amt(totalEquity.end))
+  row('Total Liabilities & Equity', '', amt(totalLiabilitiesAndEquity.begin), amt(totalLiabilitiesAndEquity.end))
+  row('')
+  row('Difference (Assets − Liabilities & Equity)', '', amt(difference.begin), amt(difference.end))
+
+  return { csv: lines.join('\n'), filename: `TrialBalance_${dateFrom}_to_${dateTo}.csv` }
+}
+
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
 function escapeCSV(val: unknown): string {

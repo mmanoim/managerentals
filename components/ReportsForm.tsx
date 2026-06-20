@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { generatePLReport, generateTransactionsReport, getCategoryInquiry, getPLData, type InquiryAccount, type PLData } from '@/app/actions/reports'
+import { generatePLReport, generateTransactionsReport, generateTrialBalanceReport, getCategoryInquiry, getPLData, getTrialBalanceData, type InquiryAccount, type PLData, type TrialBalanceData } from '@/app/actions/reports'
 
 interface Account  { id: string; name: string; type: string }
 interface Category { id: string; code: string; name: string }
@@ -81,10 +81,12 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
   const [dateFrom, setDateFrom]         = useState(`${currentYear}-01-01`)
   const [dateTo, setDateTo]             = useState(`${currentYear}-12-31`)
   const [selectedAccounts, setSelected] = useState<Set<string>>(new Set(exportAccounts.map(a => a.id)))
-  const [dlLoading, setDlLoading]       = useState<'pl' | 'transactions' | null>(null)
+  const [dlLoading, setDlLoading]       = useState<'pl' | 'transactions' | 'tb' | null>(null)
   const [exportError, setExportError]   = useState<string | null>(null)
   const [plData, setPlData]             = useState<PLData | null>(null)
   const [plLoading, setPlLoading]       = useState(false)
+  const [tbData, setTbData]             = useState<TrialBalanceData | null>(null)
+  const [tbLoading, setTbLoading]       = useState(false)
 
   // ── Inquiry state ───────────────────────────────────────────
   const [inqFrom, setInqFrom]           = useState(`${currentYear}-01-01`)
@@ -107,11 +109,21 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
     setPlLoading(false)
   }
 
-  async function handleDownload(type: 'pl' | 'transactions') {
+  async function handleViewTB() {
+    setTbLoading(true); setExportError(null); setTbData(null)
+    const result = await getTrialBalanceData(dateFrom, dateTo)
+    if ('error' in result) setExportError(result.error)
+    else setTbData(result)
+    setTbLoading(false)
+  }
+
+  async function handleDownload(type: 'pl' | 'transactions' | 'tb') {
     setDlLoading(type); setExportError(null)
     const result = type === 'pl'
       ? await generatePLReport(dateFrom, dateTo, Array.from(selectedAccounts))
-      : await generateTransactionsReport(dateFrom, dateTo, Array.from(selectedAccounts))
+      : type === 'tb'
+        ? await generateTrialBalanceReport(dateFrom, dateTo)
+        : await generateTransactionsReport(dateFrom, dateTo, Array.from(selectedAccounts))
     if ('error' in result) setExportError(result.error)
     else downloadCsv(result.csv, result.filename)
     setDlLoading(null)
@@ -188,25 +200,157 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
 
           <div className="bg-white border border-slate-200 rounded-2xl p-6">
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-2">Generate</h2>
-            <p className="text-xs text-slate-400 mb-5">View P&L on screen or download either report as a CSV that opens in Excel.</p>
-            <div className="flex gap-3 flex-wrap">
+            <p className="text-xs text-slate-400 mb-5">View reports on screen or download as CSV that opens in Excel.</p>
+
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">P&amp;L / Transactions</p>
+            <div className="flex gap-3 flex-wrap mb-5">
               <button type="button" onClick={handleViewPL}
-                disabled={plLoading || dlLoading !== null || selectedAccounts.size === 0}
+                disabled={plLoading || tbLoading || dlLoading !== null || selectedAccounts.size === 0}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
                 {plLoading ? 'Loading…' : 'View P&L'}
               </button>
               <button type="button" onClick={() => handleDownload('pl')}
-                disabled={plLoading || dlLoading !== null || selectedAccounts.size === 0}
+                disabled={plLoading || tbLoading || dlLoading !== null || selectedAccounts.size === 0}
                 className="flex items-center gap-2 border border-slate-300 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
                 {dlLoading === 'pl' ? <span>Generating…</span> : <><DownloadIcon /> P&amp;L CSV</>}
               </button>
               <button type="button" onClick={() => handleDownload('transactions')}
-                disabled={plLoading || dlLoading !== null || selectedAccounts.size === 0}
+                disabled={plLoading || tbLoading || dlLoading !== null || selectedAccounts.size === 0}
                 className="flex items-center gap-2 border border-slate-300 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
                 {dlLoading === 'transactions' ? <span>Generating…</span> : <><DownloadIcon /> Transactions CSV</>}
               </button>
             </div>
+
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Trial Balance</p>
+            <p className="text-xs text-slate-400 mb-3">Balance sheet view of all accounts — assets, liabilities, and equity — as of the selected period. Does not depend on account selection above.</p>
+            <div className="flex gap-3 flex-wrap">
+              <button type="button" onClick={handleViewTB}
+                disabled={plLoading || tbLoading || dlLoading !== null}
+                className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
+                {tbLoading ? 'Loading…' : 'View Trial Balance'}
+              </button>
+              <button type="button" onClick={() => handleDownload('tb')}
+                disabled={plLoading || tbLoading || dlLoading !== null}
+                className="flex items-center gap-2 border border-slate-300 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
+                {dlLoading === 'tb' ? <span>Generating…</span> : <><DownloadIcon /> Trial Balance CSV</>}
+              </button>
+            </div>
           </div>
+
+          {/* On-screen Trial Balance */}
+          {tbData && (() => {
+            const tb = tbData
+            const col = (n: number) => (
+              <span className={`tabular-nums ${n < 0 ? 'text-red-600' : ''}`}>{usd(n)}</span>
+            )
+            type TBAcct = { id: string; name: string; beginBalance: number; endBalance: number }
+            function TBGroup({ label, accounts }: { label: string; accounts: TBAcct[] }) {
+              if (accounts.length === 0) return null
+              const totB = accounts.reduce((s, a) => s + a.beginBalance, 0)
+              const totE = accounts.reduce((s, a) => s + a.endBalance, 0)
+              return (
+                <>
+                  <tr className="bg-slate-50">
+                    <td colSpan={3} className="px-6 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">{label}</td>
+                  </tr>
+                  {accounts.map(a => (
+                    <tr key={a.id} className="border-t border-slate-100">
+                      <td className="px-6 py-2 pl-10 text-sm text-slate-700">{a.name}</td>
+                      <td className="py-2 text-right text-sm px-4">{col(a.beginBalance)}</td>
+                      <td className="py-2 text-right text-sm px-6">{col(a.endBalance)}</td>
+                    </tr>
+                  ))}
+                  <tr className="border-t border-slate-200 font-medium">
+                    <td className="px-6 py-2 pl-10 text-sm text-slate-600">Total {label}</td>
+                    <td className="py-2 text-right text-sm px-4">{col(totB)}</td>
+                    <td className="py-2 text-right text-sm px-6">{col(totE)}</td>
+                  </tr>
+                </>
+              )
+            }
+            function SectionRow({ label, begin, end, bold }: { label: string; begin: number; end: number; bold?: boolean }) {
+              return (
+                <tr className={`border-t-2 border-slate-300 ${bold ? 'font-bold' : 'font-semibold'}`}>
+                  <td className="px-6 py-2.5 text-sm text-slate-800">{label}</td>
+                  <td className="py-2.5 text-right text-sm px-4">{col(begin)}</td>
+                  <td className="py-2.5 text-right text-sm px-6">{col(end)}</td>
+                </tr>
+              )
+            }
+            const diffOk = Math.abs(tb.difference.end) < 0.01
+            return (
+              <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">Trial Balance</p>
+                    <p className="text-xs text-slate-400 mt-0.5">{tb.dateFrom} – {tb.dateTo}</p>
+                  </div>
+                  <button type="button" onClick={() => handleDownload('tb')}
+                    disabled={dlLoading !== null}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 hover:text-indigo-800 disabled:opacity-50 transition-colors">
+                    <DownloadIcon /> Download CSV
+                  </button>
+                </div>
+
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200">
+                      <th className="text-left px-6 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide">Account</th>
+                      <th className="text-right px-4 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Beginning</th>
+                      <th className="text-right px-6 py-2.5 text-xs font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">Ending</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* ASSETS */}
+                    <tr className="bg-indigo-50">
+                      <td colSpan={3} className="px-6 py-2 text-xs font-bold text-indigo-700 uppercase tracking-widest">Assets</td>
+                    </tr>
+                    <tr className="bg-slate-50">
+                      <td colSpan={3} className="px-6 py-1 text-xs font-semibold text-slate-500">Current Assets</td>
+                    </tr>
+                    <TBGroup label="Checking / Savings" accounts={tb.bankAccounts} />
+                    <TBGroup label="Payment Apps" accounts={tb.payAppAccounts} />
+                    <TBGroup label="Cash" accounts={tb.cashAccounts} />
+                    <SectionRow label="Total Current Assets" begin={tb.totalCurrentAssets.begin} end={tb.totalCurrentAssets.end} />
+                    <SectionRow label="Total Assets" begin={tb.totalAssets.begin} end={tb.totalAssets.end} bold />
+
+                    {/* LIABILITIES & EQUITY */}
+                    <tr className="bg-indigo-50">
+                      <td colSpan={3} className="px-6 py-2 text-xs font-bold text-indigo-700 uppercase tracking-widest">Liabilities &amp; Equity</td>
+                    </tr>
+                    <tr className="bg-slate-50">
+                      <td colSpan={3} className="px-6 py-1 text-xs font-semibold text-slate-500">Liabilities</td>
+                    </tr>
+                    <TBGroup label="Credit Cards" accounts={tb.creditCardAccounts} />
+                    <TBGroup label="Other Liabilities" accounts={tb.liabilityAccounts} />
+                    <SectionRow label="Total Liabilities" begin={tb.totalLiabilities.begin} end={tb.totalLiabilities.end} />
+
+                    <tr className="bg-slate-50">
+                      <td colSpan={3} className="px-6 py-1 text-xs font-semibold text-slate-500">Equity</td>
+                    </tr>
+                    <TBGroup label="Partner Accounts" accounts={tb.partnerAccounts} />
+                    <tr className="border-t border-slate-100">
+                      <td className="px-6 py-2 pl-10 text-sm text-slate-700">Net Income</td>
+                      <td className="py-2 text-right text-sm px-4">{col(tb.netIncome.begin)}</td>
+                      <td className="py-2 text-right text-sm px-6">{col(tb.netIncome.end)}</td>
+                    </tr>
+                    <SectionRow label="Total Equity" begin={tb.totalEquity.begin} end={tb.totalEquity.end} />
+                    <SectionRow label="Total Liabilities & Equity" begin={tb.totalLiabilitiesAndEquity.begin} end={tb.totalLiabilitiesAndEquity.end} bold />
+                  </tbody>
+                </table>
+
+                {/* Difference row */}
+                <div className={`mx-6 my-4 px-4 py-3 rounded-xl flex items-center justify-between gap-4 ${diffOk ? 'bg-emerald-50' : 'bg-amber-50'}`}>
+                  <span className={`text-sm font-semibold ${diffOk ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {diffOk ? '✓ Balanced' : '⚠ Difference (Assets − Liabilities & Equity)'}
+                  </span>
+                  {!diffOk && (
+                    <span className="text-sm font-bold tabular-nums text-amber-700">{usd(tb.difference.end)}</span>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* On-screen P&L */}
           {plData && (() => {
