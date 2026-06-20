@@ -541,7 +541,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_account_balances: {
+        Args: never
+        Returns: {
+          account_id: string
+          balance: number
+        }[]
+      }
     }
     Enums: {
       lease_status: "active" | "expired" | "terminated"

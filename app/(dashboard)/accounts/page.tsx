@@ -30,20 +30,19 @@ function fmt(amount: number) {
 export default async function AccountsPage() {
   const supabase = await createClient()
 
-  const [{ data: accounts }, { data: txData }] = await Promise.all([
+  const [{ data: accounts }, { data: balanceData }] = await Promise.all([
     supabase.from('accounts').select('*').order('type').order('name'),
-    supabase.from('account_transactions').select('account_id, amount'),
+    supabase.rpc('get_account_balances'),
   ])
 
-  // Sum transactions per account
-  const totals = new Map<string, number>()
-  for (const tx of txData ?? []) {
-    totals.set(tx.account_id, (totals.get(tx.account_id) ?? 0) + Number(tx.amount))
+  const balanceMap = new Map<string, number>()
+  for (const b of balanceData ?? []) {
+    balanceMap.set(b.account_id, Number(b.balance))
   }
 
   const rows = (accounts ?? []).map(a => ({
     ...a,
-    balance: Number(a.opening_balance) + (totals.get(a.id) ?? 0),
+    balance: balanceMap.get(a.id) ?? Number(a.opening_balance),
   }))
 
   // Group by type in display order
