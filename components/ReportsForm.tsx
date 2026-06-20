@@ -277,7 +277,6 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
                 </tr>
               )
             }
-            const diffOk = Math.abs(tb.difference.end) < 0.01
             return (
               <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
@@ -301,7 +300,6 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
                     </tr>
                   </thead>
                   <tbody>
-                    {/* ASSETS */}
                     <tr className="bg-indigo-50">
                       <td colSpan={3} className="px-6 py-2 text-xs font-bold text-indigo-700 uppercase tracking-widest">Assets</td>
                     </tr>
@@ -314,40 +312,14 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
                     <SectionRow label="Total Current Assets" begin={tb.totalCurrentAssets.begin} end={tb.totalCurrentAssets.end} />
                     <SectionRow label="Total Assets" begin={tb.totalAssets.begin} end={tb.totalAssets.end} bold />
 
-                    {/* LIABILITIES & EQUITY */}
                     <tr className="bg-indigo-50">
-                      <td colSpan={3} className="px-6 py-2 text-xs font-bold text-indigo-700 uppercase tracking-widest">Liabilities &amp; Equity</td>
-                    </tr>
-                    <tr className="bg-slate-50">
-                      <td colSpan={3} className="px-6 py-1 text-xs font-semibold text-slate-500">Liabilities</td>
+                      <td colSpan={3} className="px-6 py-2 text-xs font-bold text-indigo-700 uppercase tracking-widest">Liabilities</td>
                     </tr>
                     <TBGroup label="Credit Cards" accounts={tb.creditCardAccounts} />
                     <TBGroup label="Other Liabilities" accounts={tb.liabilityAccounts} />
-                    <SectionRow label="Total Liabilities" begin={tb.totalLiabilities.begin} end={tb.totalLiabilities.end} />
-
-                    <tr className="bg-slate-50">
-                      <td colSpan={3} className="px-6 py-1 text-xs font-semibold text-slate-500">Equity</td>
-                    </tr>
-                    <TBGroup label="Partner Accounts" accounts={tb.partnerAccounts} />
-                    <tr className="border-t border-slate-100">
-                      <td className="px-6 py-2 pl-10 text-sm text-slate-700">Net Income</td>
-                      <td className="py-2 text-right text-sm px-4">{col(tb.netIncome.begin)}</td>
-                      <td className="py-2 text-right text-sm px-6">{col(tb.netIncome.end)}</td>
-                    </tr>
-                    <SectionRow label="Total Equity" begin={tb.totalEquity.begin} end={tb.totalEquity.end} />
-                    <SectionRow label="Total Liabilities & Equity" begin={tb.totalLiabilitiesAndEquity.begin} end={tb.totalLiabilitiesAndEquity.end} bold />
+                    <SectionRow label="Total Liabilities" begin={tb.totalLiabilities.begin} end={tb.totalLiabilities.end} bold />
                   </tbody>
                 </table>
-
-                {/* Difference row */}
-                <div className={`mx-6 my-4 px-4 py-3 rounded-xl flex items-center justify-between gap-4 ${diffOk ? 'bg-emerald-50' : 'bg-amber-50'}`}>
-                  <span className={`text-sm font-semibold ${diffOk ? 'text-emerald-700' : 'text-amber-700'}`}>
-                    {diffOk ? '✓ Balanced' : '⚠ Difference (Assets − Liabilities & Equity)'}
-                  </span>
-                  {!diffOk && (
-                    <span className="text-sm font-bold tabular-nums text-amber-700">{usd(tb.difference.end)}</span>
-                  )}
-                </div>
               </div>
             )
           })()}

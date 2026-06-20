@@ -174,12 +174,7 @@ export interface TrialBalanceData {
   creditCardAccounts: TBAccount[]
   liabilityAccounts: TBAccount[]
   totalLiabilities: { begin: number; end: number }
-  partnerAccounts: TBAccount[]
-  netIncome: { begin: number; end: number }
-  totalEquity: { begin: number; end: number }
   totalAssets: { begin: number; end: number }
-  totalLiabilitiesAndEquity: { begin: number; end: number }
-  difference: { begin: number; end: number }
 }
 
 function prevDay(dateStr: string): string {
@@ -201,12 +196,10 @@ export async function getTrialBalanceData(
 
   const beginDate = prevDay(dateFrom)
 
-  const [{ data: allAccounts }, beginBalances, endBalances, beginNIRes, endNIRes] = await Promise.all([
+  const [{ data: allAccounts }, beginBalances, endBalances] = await Promise.all([
     supabase.from('accounts').select('id, name, type, opening_balance').order('name'),
     supabase.rpc('get_account_balances_as_of', { p_date: beginDate }),
     supabase.rpc('get_account_balances_as_of', { p_date: dateTo }),
-    supabase.rpc('get_net_income_as_of', { p_date: beginDate }),
-    supabase.rpc('get_net_income_as_of', { p_date: dateTo }),
   ])
 
   if (!allAccounts) return { error: 'Failed to fetch accounts' }
@@ -219,8 +212,6 @@ export async function getTrialBalanceData(
   const endMap = new Map<string, number>(
     (endBalances.data ?? []).map(b => [b.account_id, Number(b.balance)]),
   )
-  const beginNI = Number(beginNIRes.data ?? 0)
-  const endNI = Number(endNIRes.data ?? 0)
 
   function toTB(acct: { id: string; name: string; opening_balance: number }): TBAccount {
     return {
@@ -246,7 +237,6 @@ export async function getTrialBalanceData(
     ...a, beginBalance: -a.beginBalance, endBalance: -a.endBalance,
   }))
   const liabilityAccounts = byType('liability')
-  const partnerAccounts   = byType('partner')
 
   const totalCurrentAssets = {
     begin: sumB(bankAccounts) + sumB(payAppAccounts) + sumB(cashAccounts),
@@ -255,14 +245,6 @@ export async function getTrialBalanceData(
   const totalLiabilities = {
     begin: sumB(creditCardAccounts) + sumB(liabilityAccounts),
     end:   sumE(creditCardAccounts) + sumE(liabilityAccounts),
-  }
-  const totalEquity = {
-    begin: sumB(partnerAccounts) + beginNI,
-    end:   sumE(partnerAccounts) + endNI,
-  }
-  const totalLiabilitiesAndEquity = {
-    begin: totalLiabilities.begin + totalEquity.begin,
-    end:   totalLiabilities.end   + totalEquity.end,
   }
 
   return {
@@ -275,15 +257,7 @@ export async function getTrialBalanceData(
     creditCardAccounts,
     liabilityAccounts,
     totalLiabilities,
-    partnerAccounts,
-    netIncome: { begin: beginNI, end: endNI },
-    totalEquity,
     totalAssets: totalCurrentAssets,
-    totalLiabilitiesAndEquity,
-    difference: {
-      begin: totalCurrentAssets.begin - totalLiabilitiesAndEquity.begin,
-      end:   totalCurrentAssets.end   - totalLiabilitiesAndEquity.end,
-    },
   }
 }
 
@@ -298,8 +272,7 @@ export async function generateTrialBalanceReport(
   const {
     bankAccounts, payAppAccounts, cashAccounts,
     totalCurrentAssets, creditCardAccounts, liabilityAccounts,
-    totalLiabilities, partnerAccounts, netIncome, totalEquity,
-    totalAssets, totalLiabilitiesAndEquity, difference,
+    totalLiabilities, totalAssets,
   } = data
 
   const lines: string[] = []
@@ -326,18 +299,10 @@ export async function generateTrialBalanceReport(
   row('Total Current Assets', '', amt(totalCurrentAssets.begin), amt(totalCurrentAssets.end))
   row('Total Assets', '', amt(totalAssets.begin), amt(totalAssets.end))
   row('')
-  row('LIABILITIES & EQUITY')
-  row('Liabilities')
+  row('LIABILITIES')
   writeGroup('Credit Cards', creditCardAccounts)
   writeGroup('Other Liabilities', liabilityAccounts)
   row('Total Liabilities', '', amt(totalLiabilities.begin), amt(totalLiabilities.end))
-  row('Equity')
-  writeGroup('Partner Accounts', partnerAccounts)
-  row('Net Income', '', amt(netIncome.begin), amt(netIncome.end))
-  row('Total Equity', '', amt(totalEquity.begin), amt(totalEquity.end))
-  row('Total Liabilities & Equity', '', amt(totalLiabilitiesAndEquity.begin), amt(totalLiabilitiesAndEquity.end))
-  row('')
-  row('Difference (Assets − Liabilities & Equity)', '', amt(difference.begin), amt(difference.end))
 
   return { csv: lines.join('\n'), filename: `TrialBalance_${dateFrom}_to_${dateTo}.csv` }
 }
