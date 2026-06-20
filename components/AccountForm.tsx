@@ -4,12 +4,16 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { type Tables } from '@/lib/supabase/types'
 
-const ACCOUNT_TYPES = [
+const TRANSACTIONAL_TYPES = [
   { value: 'bank',    label: 'Bank Account'    },
   { value: 'payapp',  label: 'Payment App'     },
   { value: 'cash',    label: 'Cash'            },
   { value: 'credit',  label: 'Credit Card'     },
   { value: 'partner', label: 'Partner Account' },
+]
+
+const BALANCE_SHEET_TYPES = [
+  { value: 'liability', label: 'Liability' },
 ]
 
 const OWNERS = [
@@ -54,9 +58,16 @@ export default function AccountForm({ action, defaultValues }: AccountFormProps)
         <div>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">Type *</label>
           <select name="type" required defaultValue={defaultValues?.type ?? 'bank'} className={selectClass}>
-            {ACCOUNT_TYPES.map(t => (
-              <option key={t.value} value={t.value}>{t.label}</option>
-            ))}
+            <optgroup label="Transactional">
+              {TRANSACTIONAL_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </optgroup>
+            <optgroup label="Balance Sheet">
+              {BALANCE_SHEET_TYPES.map(t => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </optgroup>
           </select>
         </div>
         <div>
