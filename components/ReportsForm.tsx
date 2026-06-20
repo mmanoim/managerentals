@@ -111,7 +111,7 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
 
   async function handleViewTB() {
     setTbLoading(true); setExportError(null); setTbData(null)
-    const result = await getTrialBalanceData(dateFrom, dateTo)
+    const result = await getTrialBalanceData(dateFrom, dateTo, Array.from(selectedAccounts))
     if ('error' in result) setExportError(result.error)
     else setTbData(result)
     setTbLoading(false)
@@ -122,7 +122,7 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
     const result = type === 'pl'
       ? await generatePLReport(dateFrom, dateTo, Array.from(selectedAccounts))
       : type === 'tb'
-        ? await generateTrialBalanceReport(dateFrom, dateTo)
+        ? await generateTrialBalanceReport(dateFrom, dateTo, Array.from(selectedAccounts))
         : await generateTransactionsReport(dateFrom, dateTo, Array.from(selectedAccounts))
     if ('error' in result) setExportError(result.error)
     else downloadCsv(result.csv, result.filename)
@@ -222,15 +222,15 @@ export default function ReportsForm({ accounts, categories }: { accounts: Accoun
             </div>
 
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Trial Balance</p>
-            <p className="text-xs text-slate-400 mb-3">Balance sheet view of all accounts — assets, liabilities, and equity — as of the selected period. Does not depend on account selection above.</p>
+            <p className="text-xs text-slate-400 mb-3">Balance sheet view of selected accounts — assets, liabilities, and equity — as of the selected period. Partner and liability accounts always included.</p>
             <div className="flex gap-3 flex-wrap">
               <button type="button" onClick={handleViewTB}
-                disabled={plLoading || tbLoading || dlLoading !== null}
+                disabled={plLoading || tbLoading || dlLoading !== null || selectedAccounts.size === 0}
                 className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
                 {tbLoading ? 'Loading…' : 'View Trial Balance'}
               </button>
               <button type="button" onClick={() => handleDownload('tb')}
-                disabled={plLoading || tbLoading || dlLoading !== null}
+                disabled={plLoading || tbLoading || dlLoading !== null || selectedAccounts.size === 0}
                 className="flex items-center gap-2 border border-slate-300 hover:border-indigo-400 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 font-semibold py-2.5 px-5 rounded-lg transition-colors text-sm">
                 {dlLoading === 'tb' ? <span>Generating…</span> : <><DownloadIcon /> Trial Balance CSV</>}
               </button>

@@ -191,8 +191,10 @@ function prevDay(dateStr: string): string {
 export async function getTrialBalanceData(
   dateFrom: string,
   dateTo: string,
+  selectedAccountIds: string[],
 ): Promise<TrialBalanceData | { error: string }> {
   if (!dateFrom || !dateTo) return { error: 'Date range required' }
+  if (selectedAccountIds.length === 0) return { error: 'Select at least one account' }
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated' }
@@ -229,15 +231,18 @@ export async function getTrialBalanceData(
     }
   }
 
-  const byType = (type: string) => allAccounts.filter(a => a.type === type).map(toTB)
+  const selectedSet = new Set(selectedAccountIds)
+  // EXPORT_TYPES accounts are filtered by selection; partner/liability always included
+  const byType = (type: string, applyFilter = false) =>
+    allAccounts.filter(a => a.type === type && (!applyFilter || selectedSet.has(a.id))).map(toTB)
   const sumB = (accts: TBAccount[]) => accts.reduce((s, a) => s + a.beginBalance, 0)
   const sumE = (accts: TBAccount[]) => accts.reduce((s, a) => s + a.endBalance, 0)
 
-  const bankAccounts   = byType('bank')
-  const payAppAccounts = byType('payapp')
-  const cashAccounts   = byType('cash')
+  const bankAccounts   = byType('bank',   true)
+  const payAppAccounts = byType('payapp', true)
+  const cashAccounts   = byType('cash',   true)
   // Credit card balances are negative in our system (debt owed); shown as positive in liabilities
-  const creditCardAccounts = byType('credit').map(a => ({
+  const creditCardAccounts = byType('credit', true).map(a => ({
     ...a, beginBalance: -a.beginBalance, endBalance: -a.endBalance,
   }))
   const liabilityAccounts = byType('liability')
@@ -285,8 +290,9 @@ export async function getTrialBalanceData(
 export async function generateTrialBalanceReport(
   dateFrom: string,
   dateTo: string,
+  selectedAccountIds: string[],
 ): Promise<{ csv: string; filename: string } | { error: string }> {
-  const data = await getTrialBalanceData(dateFrom, dateTo)
+  const data = await getTrialBalanceData(dateFrom, dateTo, selectedAccountIds)
   if ('error' in data) return data
 
   const {
