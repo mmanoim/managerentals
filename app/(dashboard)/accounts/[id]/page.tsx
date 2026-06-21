@@ -24,10 +24,10 @@ export default async function AccountRegisterPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ date_from?: string; date_to?: string; reconciled?: string; category_id?: string }>
+  searchParams: Promise<{ date_from?: string; date_to?: string; reconciled?: string; category_id?: string; amount_min?: string; amount_max?: string }>
 }) {
   const { id } = await params
-  const { date_from, date_to, reconciled, category_id } = await searchParams
+  const { date_from, date_to, reconciled, category_id, amount_min, amount_max } = await searchParams
   const supabase = await createClient()
 
   const [{ data: account }, { data: allTx }, { data: categories }] = await Promise.all([
@@ -79,11 +79,13 @@ export default async function AccountRegisterPage({
   else if (category_id)      filtered = filtered.filter(tx => tx.category_id === category_id)
   if (reconciled === 'yes') filtered = filtered.filter(tx => tx.reconciled)
   if (reconciled === 'no')  filtered = filtered.filter(tx => !tx.reconciled)
+  if (amount_min) filtered = filtered.filter(tx => Number(tx.amount) >= Number(amount_min))
+  if (amount_max) filtered = filtered.filter(tx => Number(tx.amount) <= Number(amount_max))
 
   // Newest first for display
   const displayRows = [...filtered].reverse()
 
-  const hasFilters = date_from || date_to || reconciled || category_id
+  const hasFilters = date_from || date_to || reconciled || category_id || amount_min || amount_max
 
   return (
     <div>
@@ -142,6 +144,8 @@ export default async function AccountRegisterPage({
           p.set('date_to', `${y}-12-31`)
           if (category_id) p.set('category_id', category_id)
           if (reconciled)  p.set('reconciled', reconciled)
+          if (amount_min)  p.set('amount_min', amount_min)
+          if (amount_max)  p.set('amount_max', amount_max)
           return `/accounts/${id}?${p.toString()}`
         }
         const isActiveYear = (y: number) => date_from === `${y}-01-01` && date_to === `${y}-12-31`
@@ -190,6 +194,18 @@ export default async function AccountRegisterPage({
             <option value="yes">Reconciled</option>
             <option value="no">Unreconciled</option>
           </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Amount min ($)</label>
+          <input type="number" name="amount_min" step="0.01" defaultValue={amount_min}
+            placeholder="e.g. -1400"
+            className="w-28 px-3 py-1.5 rounded-lg border border-slate-300 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Amount max ($)</label>
+          <input type="number" name="amount_max" step="0.01" defaultValue={amount_max}
+            placeholder="e.g. 1400"
+            className="w-28 px-3 py-1.5 rounded-lg border border-slate-300 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
         </div>
         <div className="flex gap-2">
           <button type="submit"
