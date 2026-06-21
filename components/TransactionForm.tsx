@@ -226,7 +226,7 @@ export default function TransactionForm({ action, categories, properties, accoun
             ))}
           </select>
           <p className="text-xs text-slate-400">
-            Creates a matching entry in the selected account (partner or liability).
+            Creates a matching entry in the selected account to record the other side of the transfer.
           </p>
         </div>
       )}
