@@ -24,10 +24,10 @@ export default async function AccountRegisterPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ date_from?: string; date_to?: string; reconciled?: string; category_id?: string; amount_min?: string; amount_max?: string }>
+  searchParams: Promise<{ date_from?: string; date_to?: string; reconciled?: string; category_id?: string; amount_min?: string; amount_max?: string; description?: string }>
 }) {
   const { id } = await params
-  const { date_from, date_to, reconciled, category_id, amount_min, amount_max } = await searchParams
+  const { date_from, date_to, reconciled, category_id, amount_min, amount_max, description } = await searchParams
   const supabase = await createClient()
 
   const [{ data: account }, { data: allTx }, { data: categories }] = await Promise.all([
@@ -81,11 +81,15 @@ export default async function AccountRegisterPage({
   if (reconciled === 'no')  filtered = filtered.filter(tx => !tx.reconciled)
   if (amount_min) filtered = filtered.filter(tx => Number(tx.amount) >= Number(amount_min))
   if (amount_max) filtered = filtered.filter(tx => Number(tx.amount) <= Number(amount_max))
+  if (description) {
+    const q = description.toLowerCase()
+    filtered = filtered.filter(tx => tx.description?.toLowerCase().includes(q))
+  }
 
   // Newest first for display
   const displayRows = [...filtered].reverse()
 
-  const hasFilters = date_from || date_to || reconciled || category_id || amount_min || amount_max
+  const hasFilters = date_from || date_to || reconciled || category_id || amount_min || amount_max || description
 
   return (
     <div>
@@ -146,6 +150,7 @@ export default async function AccountRegisterPage({
           if (reconciled)  p.set('reconciled', reconciled)
           if (amount_min)  p.set('amount_min', amount_min)
           if (amount_max)  p.set('amount_max', amount_max)
+          if (description) p.set('description', description)
           return `/accounts/${id}?${p.toString()}`
         }
         const isActiveYear = (y: number) => date_from === `${y}-01-01` && date_to === `${y}-12-31`
@@ -165,6 +170,12 @@ export default async function AccountRegisterPage({
           ))}
         </div>
         <div className="flex items-end gap-4 flex-wrap">
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Description</label>
+          <input type="text" name="description" defaultValue={description}
+            placeholder="Search…"
+            className="w-48 px-3 py-1.5 rounded-lg border border-slate-300 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" />
+        </div>
         <div>
           <label className="block text-xs font-medium text-slate-500 mb-1">From</label>
           <input type="date" name="date_from" defaultValue={date_from}
