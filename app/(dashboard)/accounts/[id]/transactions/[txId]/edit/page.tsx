@@ -23,9 +23,10 @@ export default async function EditTransactionPage({
 
   if (!account || !tx) notFound()
 
-  // Partner accounts available for linking (only relevant when current account is not itself a partner)
-  const partnerAccounts = (account as any).type !== 'partner'
-    ? (allAccounts ?? []).filter((a: any) => a.type === 'partner')
+  // Accounts available for linking (partner + liability), not shown when editing from those account types
+  const linkableTypes = ['partner', 'liability']
+  const partnerAccounts = !linkableTypes.includes((account as any).type)
+    ? (allAccounts ?? []).filter((a: any) => linkableTypes.includes(a.type))
     : []
 
   // If already linked via transfer_pair_id, find the other side
@@ -63,7 +64,7 @@ export default async function EditTransactionPage({
         action={updateWithIds}
         categories={categories ?? []}
         properties={properties ?? []}
-        accounts={(allAccounts ?? []).filter((a: any) => a.id !== id && a.type !== 'partner')}
+        accounts={(allAccounts ?? []).filter((a: any) => a.id !== id && !linkableTypes.includes(a.type))}
         partnerAccounts={partnerAccounts}
         existingPartnerLink={existingPartnerLink}
         defaultValues={tx}

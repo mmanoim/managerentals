@@ -217,7 +217,7 @@ export default function TransactionForm({ action, categories, properties, accoun
       ) : partnerAccounts && partnerAccounts.length > 0 && (
         <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
           <label className="block text-sm font-medium text-slate-700">
-            Link to partner account <span className="text-slate-400 font-normal">(optional)</span>
+            Link to account <span className="text-slate-400 font-normal">(optional)</span>
           </label>
           <select name="partner_account_id" className={`${inputClass} bg-white`}>
             <option value="">— None —</option>
@@ -226,7 +226,7 @@ export default function TransactionForm({ action, categories, properties, accoun
             ))}
           </select>
           <p className="text-xs text-slate-400">
-            Creates a matching entry in the selected partner account to record the payment taken.
+            Creates a matching entry in the selected account (partner or liability).
           </p>
         </div>
       )}
