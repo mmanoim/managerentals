@@ -81,7 +81,7 @@ export async function updateTransaction(accountId: string, txId: string, formDat
     .from('account_transactions')
     .update(txPayload(formData))
     .eq('id', txId)
-    .select('transfer_pair_id, amount, date, description')
+    .select('transfer_pair_id, amount, date, description, category_id')
     .single()
   if (error) return { error: error.message }
 
@@ -89,10 +89,8 @@ export async function updateTransaction(accountId: string, txId: string, formDat
   if (partnerAccountId && !updated.transfer_pair_id) {
     const pairId = crypto.randomUUID()
 
-    const [{ data: partnerAccount }, { data: cat }] = await Promise.all([
-      supabase.from('accounts').select('name, type').eq('id', partnerAccountId).single(),
-      supabase.from('chart_of_accounts').select('id').eq('code', '801').single(),
-    ])
+    const { data: partnerAccount } = await supabase
+      .from('accounts').select('name, type').eq('id', partnerAccountId).single()
 
     // For bank/payapp transfers the linked entry is the opposite sign (money leaving one = arriving in other).
     // For partner/liability accounts the same sign is kept (recording a shared receipt or deposit).
@@ -106,9 +104,9 @@ export async function updateTransaction(accountId: string, txId: string, formDat
       supabase.from('account_transactions').insert({
         account_id: partnerAccountId,
         date: updated.date,
-        description: `Payment taken — ${updated.description ?? ''}`.trim().replace(/—\s*$/, ''),
+        description: updated.description,
         amount: linkedAmount,
-        category_id: cat?.id ?? null,
+        category_id: updated.category_id,
         source: 'manual' as const,
         transfer_pair_id: pairId,
         reconciled: false,
