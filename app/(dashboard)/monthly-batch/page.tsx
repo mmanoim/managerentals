@@ -69,7 +69,7 @@ export default async function MonthlyBatchPage({
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-semibold text-slate-900">Rent Charges</h2>
-              <p className="text-xs text-slate-400 mt-0.5">1st of month entry in each active lease ledger</p>
+              <p className="text-xs text-slate-400 mt-0.5">Charge date based on lease start day</p>
             </div>
             <span className="text-sm font-semibold text-slate-700">{fmtCurrency(totalRent)} total</span>
           </div>
@@ -78,19 +78,26 @@ export default async function MonthlyBatchPage({
               <tr className="border-b border-slate-100">
                 <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide px-5 py-2.5">Tenant</th>
                 <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide px-4 py-2.5">Unit</th>
+                <th className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide px-4 py-2.5">Date</th>
                 <th className="text-right text-xs font-semibold text-slate-400 uppercase tracking-wide px-4 py-2.5">Amount</th>
                 <th className="text-right text-xs font-semibold text-slate-400 uppercase tracking-wide px-5 py-2.5">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {preview.rentCharges.map(r => (
+              {preview.rentCharges.map(r => {
+                const [y, m, d] = r.entryDate.split('-')
+                const dateLabel = new Date(Number(y), Number(m) - 1, Number(d))
+                  .toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                return (
                 <tr key={r.leaseId} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-medium text-slate-900">{r.tenantNames}</td>
                   <td className="px-4 py-3 text-slate-500">{r.address} · {r.unit}</td>
+                  <td className="px-4 py-3 text-slate-500 tabular-nums">{dateLabel}</td>
                   <td className="px-4 py-3 text-right tabular-nums text-slate-700">{fmtCurrency(r.amount)}</td>
                   <td className="px-5 py-3 text-right"><StatusBadge exists={r.exists} /></td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>
