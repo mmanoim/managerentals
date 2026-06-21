@@ -115,6 +115,16 @@ export async function updateTransaction(accountId: string, txId: string, formDat
   redirect(`/accounts/${accountId}`)
 }
 
+export async function patchTransactionNotes(txId: string, notes: string | null) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('account_transactions')
+    .update({ notes: notes || null })
+    .eq('id', txId)
+  if (error) return { error: error.message }
+  refresh()
+}
+
 export async function patchTransactionCategory(txId: string, accountId: string, categoryId: string | null) {
   const supabase = await createClient()
   const { error } = await supabase

@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import Link from 'next/link'
-import { patchTransactionCategory, deleteTransaction } from '@/app/actions/account_transactions'
+import { patchTransactionCategory, patchTransactionNotes, deleteTransaction } from '@/app/actions/account_transactions'
 
 const SOURCE_LABELS: Record<string, string> = {
   csv: 'CSV', pdf: 'PDF', tenant_payment: 'Tenant',
@@ -56,6 +56,20 @@ export default function InlineRegisterTable({
   const [errorIds, setErrorIds]   = useState<Set<string>>(new Set())
   const [, startTransition] = useTransition()
 
+  const [notesMap, setNotesMap]       = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {}
+    for (const tx of rows) m[tx.id] = tx.notes ?? ''
+    return m
+  })
+  const [notesOrigMap, setNotesOrigMap] = useState<Record<string, string>>(() => {
+    const m: Record<string, string> = {}
+    for (const tx of rows) m[tx.id] = tx.notes ?? ''
+    return m
+  })
+  const [notesSavingIds, setNotesSavingIds] = useState<Set<string>>(new Set())
+  const [notesSavedIds, setNotesSavedIds]   = useState<Set<string>>(new Set())
+  const [notesErrorIds, setNotesErrorIds]   = useState<Set<string>>(new Set())
+
   function handleCategoryChange(txId: string, value: string) {
     const newCatId = value || null
     const prevCatId = categoryMap[txId] ?? null
@@ -78,6 +92,26 @@ export default function InlineRegisterTable({
     })
   }
 
+  async function handleNotesBlur(txId: string) {
+    const current = notesMap[txId] ?? ''
+    const orig = notesOrigMap[txId] ?? ''
+    if (current === orig) return
+    setNotesSavingIds(prev => new Set(prev).add(txId))
+    setNotesSavedIds(prev => { const s = new Set(prev); s.delete(txId); return s })
+    setNotesErrorIds(prev => { const s = new Set(prev); s.delete(txId); return s })
+    const result = await patchTransactionNotes(txId, current || null)
+    setNotesSavingIds(prev => { const s = new Set(prev); s.delete(txId); return s })
+    if (result?.error) {
+      setNotesMap(prev => ({ ...prev, [txId]: orig }))
+      setNotesErrorIds(prev => new Set(prev).add(txId))
+      setTimeout(() => setNotesErrorIds(prev => { const s = new Set(prev); s.delete(txId); return s }), 3000)
+    } else {
+      setNotesOrigMap(prev => ({ ...prev, [txId]: current }))
+      setNotesSavedIds(prev => new Set(prev).add(txId))
+      setTimeout(() => setNotesSavedIds(prev => { const s = new Set(prev); s.delete(txId); return s }), 1500)
+    }
+  }
+
   async function handleDelete(txId: string) {
     if (!confirm('Delete this transaction?')) return
     await deleteTransaction(accountId, txId)
@@ -93,6 +127,7 @@ export default function InlineRegisterTable({
             <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3 whitespace-nowrap">Date</th>
             <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Description</th>
             <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Category</th>
+            <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Notes</th>
             <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-4 py-3">Amount</th>
             <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-5 py-3">Balance</th>
             <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide px-3 py-3">✓</th>
@@ -113,7 +148,7 @@ export default function InlineRegisterTable({
                   <div className="flex items-center gap-2 mt-0.5">
                     {tx.payee && <p className="text-xs text-slate-600 truncate font-medium">{tx.payee}</p>}
                     {tx.check_number && <p className="text-xs text-slate-400 truncate">#{tx.check_number}</p>}
-                    {tx.notes && !tx.payee && <p className="text-xs text-slate-400 truncate">{tx.notes}</p>}
+                    {/* notes moved to dedicated column */}
                     {tx.transfer_pair_id && partnerPairIds.has(tx.transfer_pair_id) && (
                       <span className="text-xs font-medium px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 flex-shrink-0">Partner Payment</span>
                     )}
@@ -151,6 +186,38 @@ export default function InlineRegisterTable({
                       </svg>
                     )}
                     {errorIds.has(tx.id) && !saving && (
+                      <span title="Save failed">
+                        <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </span>
+                    )}
+                  </div>
+                </td>
+
+                {/* Inline notes input */}
+                <td className="px-4 py-2.5 min-w-[180px]">
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={notesMap[tx.id] ?? ''}
+                      onChange={e => setNotesMap(prev => ({ ...prev, [tx.id]: e.target.value }))}
+                      onBlur={() => handleNotesBlur(tx.id)}
+                      placeholder="Add a note…"
+                      className="text-xs border border-transparent hover:border-slate-300 focus:border-indigo-400 rounded px-1.5 py-1 bg-transparent focus:bg-white focus:outline-none focus:ring-1 focus:ring-indigo-400 text-slate-600 w-full placeholder-slate-300"
+                    />
+                    {notesSavingIds.has(tx.id) && (
+                      <svg className="w-3.5 h-3.5 text-slate-400 animate-spin flex-shrink-0" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                    )}
+                    {notesSavedIds.has(tx.id) && !notesSavingIds.has(tx.id) && (
+                      <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
+                    {notesErrorIds.has(tx.id) && !notesSavingIds.has(tx.id) && (
                       <span title="Save failed">
                         <svg className="w-3.5 h-3.5 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
