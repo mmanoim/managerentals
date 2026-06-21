@@ -90,9 +90,16 @@ export async function updateTransaction(accountId: string, txId: string, formDat
     const pairId = crypto.randomUUID()
 
     const [{ data: partnerAccount }, { data: cat }] = await Promise.all([
-      supabase.from('accounts').select('name').eq('id', partnerAccountId).single(),
+      supabase.from('accounts').select('name, type').eq('id', partnerAccountId).single(),
       supabase.from('chart_of_accounts').select('id').eq('code', '801').single(),
     ])
+
+    // For bank/payapp transfers the linked entry is the opposite sign (money leaving one = arriving in other).
+    // For partner/liability accounts the same sign is kept (recording a shared receipt or deposit).
+    const transferTypes = ['bank', 'payapp']
+    const linkedAmount = transferTypes.includes((partnerAccount as any)?.type)
+      ? -updated.amount
+      : updated.amount
 
     await Promise.all([
       supabase.from('account_transactions').update({ transfer_pair_id: pairId }).eq('id', txId),
@@ -100,7 +107,7 @@ export async function updateTransaction(accountId: string, txId: string, formDat
         account_id: partnerAccountId,
         date: updated.date,
         description: `Payment taken — ${updated.description ?? ''}`.trim().replace(/—\s*$/, ''),
-        amount: updated.amount,
+        amount: linkedAmount,
         category_id: cat?.id ?? null,
         source: 'manual' as const,
         transfer_pair_id: pairId,
