@@ -77,12 +77,14 @@ export async function getMonthlyBatchPreview(month: string): Promise<MonthlyBatc
 
   // Fetch existing charges for all leases this month (entry_date within the month)
   const leaseIds = leaseItems.map(li => li.leaseId)
+  const nextMonthYear = mon === 12 ? year + 1 : year
+  const nextMon       = mon === 12 ? 1 : mon + 1
   const { data: existingCharges } = await supabase
     .from('lease_ledger_entries')
     .select('lease_id, entry_date')
     .in('lease_id', leaseIds)
     .gte('entry_date', firstOfMonth)
-    .lt('entry_date', isoDate(year, mon === 12 ? year + 1 : year, mon === 12 ? 1 : mon + 1, 1))
+    .lt('entry_date', isoDate(nextMonthYear, nextMon, 1))
     .eq('type', 'charge')
     .eq('subtype', 'rent')
   const existingSet = new Set((existingCharges ?? []).map(e => e.lease_id))
