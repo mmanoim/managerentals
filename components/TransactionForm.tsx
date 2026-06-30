@@ -7,6 +7,7 @@ import { type Tables } from '@/lib/supabase/types'
 interface Category { id: string; code: string; name: string }
 interface Property { id: string; address: string }
 interface Account  { id: string; name: string }
+interface LeaseOption { id: string; label: string }
 
 interface TransactionFormProps {
   action: (formData: FormData) => Promise<{ error: string } | void>
@@ -15,10 +16,12 @@ interface TransactionFormProps {
   accounts?: Account[]           // other accounts available for transfers
   partnerAccounts?: Account[]    // partner accounts available for linking
   existingPartnerLink?: string   // name of already-linked partner account
+  leases?: LeaseOption[]         // active leases for rent payment linking
+  existingLeaseLink?: string     // label of already-linked lease
   defaultValues?: Partial<Tables<'account_transactions'>>
 }
 
-export default function TransactionForm({ action, categories, properties, accounts, partnerAccounts, existingPartnerLink, defaultValues }: TransactionFormProps) {
+export default function TransactionForm({ action, categories, properties, accounts, partnerAccounts, existingPartnerLink, leases, existingLeaseLink, defaultValues }: TransactionFormProps) {
   const router = useRouter()
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -228,6 +231,38 @@ export default function TransactionForm({ action, categories, properties, accoun
           <p className="text-xs text-slate-400">
             Creates a matching entry in the selected account to record the other side of the transfer.
           </p>
+        </div>
+      )}
+
+      {/* Lease payment linking — only for bank accounts with payment_method */}
+      {(existingLeaseLink || (leases && leases.length > 0)) && (
+        <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 space-y-2">
+          <label className="block text-sm font-medium text-slate-700">
+            Record as rent payment <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          {existingLeaseLink ? (
+            <div className="flex items-center gap-2">
+              <svg className="w-4 h-4 text-emerald-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              <p className="text-sm text-emerald-700">
+                Already recorded as payment for <span className="font-semibold">{existingLeaseLink}</span>
+              </p>
+              <input type="hidden" name="lease_id" value="" />
+            </div>
+          ) : (
+            <>
+              <select name="lease_id" className={`${inputClass} bg-white`}>
+                <option value="">— None —</option>
+                {leases!.map(l => (
+                  <option key={l.id} value={l.id}>{l.label}</option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-400">
+                Creates a payment entry in the tenant's ledger linked to this transaction.
+              </p>
+            </>
+          )}
         </div>
       )}
 

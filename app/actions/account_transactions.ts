@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { type Enums } from '@/lib/supabase/types'
 import { revalidatePath, refresh } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -75,13 +76,14 @@ export async function createTransaction(accountId: string, formData: FormData) {
 
 export async function updateTransaction(accountId: string, txId: string, formData: FormData) {
   const partnerAccountId = (formData.get('partner_account_id') as string) || null
+  const leaseId = (formData.get('lease_id') as string) || null
   const supabase = await createClient()
 
   const { data: updated, error } = await supabase
     .from('account_transactions')
     .update(txPayload(formData))
     .eq('id', txId)
-    .select('transfer_pair_id, amount, date, description, category_id')
+    .select('transfer_pair_id, amount, date, description, category_id, source_payment_part_id')
     .single()
   if (error) return { error: error.message }
 
@@ -114,6 +116,46 @@ export async function updateTransaction(accountId: string, txId: string, formDat
     ])
 
     revalidatePath(`/accounts/${partnerAccountId}`)
+  }
+
+  // Create lease ledger payment if requested and not already linked
+  if (leaseId && !updated.source_payment_part_id) {
+    const { data: acct } = await supabase
+      .from('accounts').select('payment_method').eq('id', accountId).single()
+    const method = (acct as any)?.payment_method as Enums<'payment_method'> | null
+
+    if (method) {
+      const paymentAmount = Math.abs(Number(updated.amount))
+
+      const { data: entry, error: entryErr } = await supabase
+        .from('lease_ledger_entries')
+        .insert({
+          lease_id: leaseId,
+          type: 'payment',
+          entry_date: updated.date,
+          amount: paymentAmount,
+          description: updated.description || null,
+        })
+        .select('id')
+        .single()
+
+      if (!entryErr && entry) {
+        const { data: part, error: partErr } = await supabase
+          .from('ledger_payment_parts')
+          .insert({ ledger_entry_id: entry.id, method, amount: paymentAmount })
+          .select('id')
+          .single()
+
+        if (!partErr && part) {
+          await supabase
+            .from('account_transactions')
+            .update({ source_payment_part_id: part.id })
+            .eq('id', txId)
+        }
+      }
+
+      revalidatePath(`/leases/${leaseId}/edit`)
+    }
   }
 
   revalidatePath(`/accounts/${accountId}`)

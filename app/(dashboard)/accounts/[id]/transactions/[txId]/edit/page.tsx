@@ -13,15 +13,57 @@ export default async function EditTransactionPage({
   const { id, txId } = await params
   const supabase = await createClient()
 
-  const [{ data: account }, { data: tx }, { data: categories }, { data: properties }, { data: allAccounts }] = await Promise.all([
-    supabase.from('accounts').select('id, name, type').eq('id', id).single(),
+  const [{ data: account }, { data: tx }, { data: categories }, { data: properties }, { data: allAccounts }, { data: leaseRows }] = await Promise.all([
+    supabase.from('accounts').select('id, name, type, payment_method').eq('id', id).single(),
     supabase.from('account_transactions').select('*').eq('id', txId).eq('account_id', id).single(),
     supabase.from('chart_of_accounts').select('id, code, name').eq('archived', false).order('code'),
     supabase.from('properties').select('id, address').eq('archived', false).order('address'),
     supabase.from('accounts').select('id, name, type').eq('is_active', true).order('name'),
+    supabase.from('leases').select(`
+      id, rent_amount,
+      units:unit_id(unit_label, properties:property_id(address)),
+      lease_tenants(is_primary, tenants:tenant_id(first_name, last_name))
+    `).eq('status', 'active'),
   ])
 
   if (!account || !tx) notFound()
+
+  // Build lease options for bank accounts that have a payment_method
+  const allLeaseOptions = (leaseRows ?? []).map((l: any) => {
+    const unit = l.units
+    const tenants = (l.lease_tenants as any[]) ?? []
+    const tenantNames = tenants
+      .sort((a: any, b: any) => (b.is_primary ? 1 : 0) - (a.is_primary ? 1 : 0))
+      .map((lt: any) => `${lt.tenants?.first_name ?? ''} ${lt.tenants?.last_name ?? ''}`.trim())
+      .join(', ')
+    const address = unit?.properties?.address ?? ''
+    const unitLabel = unit?.unit_label ?? ''
+    const rent = Number(l.rent_amount).toLocaleString()
+    return { id: l.id as string, label: `${tenantNames} · ${address} · ${unitLabel} ($${rent}/mo)` }
+  })
+
+  const leasesForForm = (account as any)?.payment_method ? allLeaseOptions : []
+
+  // If already linked to a ledger entry via source_payment_part_id, find the label
+  let existingLeaseLink: string | undefined
+  if ((tx as any)?.source_payment_part_id) {
+    const { data: partRow } = await supabase
+      .from('ledger_payment_parts')
+      .select('ledger_entry_id')
+      .eq('id', (tx as any).source_payment_part_id)
+      .single()
+    if (partRow) {
+      const { data: ledgerRow } = await supabase
+        .from('lease_ledger_entries')
+        .select('lease_id')
+        .eq('id', partRow.ledger_entry_id)
+        .single()
+      if (ledgerRow) {
+        const matched = allLeaseOptions.find(l => l.id === ledgerRow.lease_id)
+        existingLeaseLink = matched?.label ?? 'an inactive lease'
+      }
+    }
+  }
 
   // Link section hidden only when editing from a partner/liability account (they are the "other side")
   const noLinkTypes = ['partner', 'liability']
@@ -69,6 +111,8 @@ export default async function EditTransactionPage({
         accounts={(allAccounts ?? []).filter((a: any) => a.id !== id && !noLinkTypes.includes(a.type))}
         partnerAccounts={partnerAccounts}
         existingPartnerLink={existingPartnerLink}
+        leases={leasesForForm}
+        existingLeaseLink={existingLeaseLink}
         defaultValues={tx}
       />
       <div className="mt-6 pt-6 border-t border-slate-200">
