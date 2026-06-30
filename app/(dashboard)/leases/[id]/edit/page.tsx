@@ -63,7 +63,7 @@ export default async function EditLeasePage({
   const leaseTenants = (lease.lease_tenants as any[]) ?? []
   const action = updateLease.bind(null, id, resolvedPropertyId)
 
-  // Build ledger with running balance
+  // Build ledger with running balance (oldest-first for correct accumulation)
   let runningBalance = 0
   const ledger = (rawEntries ?? []).map((e: any) => {
     const delta = e.type === 'charge' ? Number(e.amount) : -Number(e.amount)
@@ -71,6 +71,7 @@ export default async function EditLeasePage({
     return { ...e, runningBalance }
   })
   const currentBalance = runningBalance
+  const displayLedger = [...ledger].reverse()
 
   return (
     <div className="max-w-2xl">
@@ -135,7 +136,7 @@ export default async function EditLeasePage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ledger.map((entry: any) => {
+                {displayLedger.map((entry: any) => {
                   const isCharge = entry.type === 'charge'
                   const parts = (entry.ledger_payment_parts ?? []) as any[]
                   const deleteAction = deleteLedgerEntry.bind(null, entry.id, id)
