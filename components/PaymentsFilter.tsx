@@ -10,7 +10,8 @@ interface Props {
 
 const METHODS = [
   { value: 'td_business', label: 'TD Business' },
-  { value: 'td_joint',   label: 'TD Joint' },
+  { value: 'td_joint',      label: 'TD Joint' },
+  { value: 'jacob_personal', label: 'Jacob Personal' },
   { value: 'cash',        label: 'Cash' },
   { value: 'cashapp',     label: 'Cash App' },
   { value: 'zelle',       label: 'Zelle' },

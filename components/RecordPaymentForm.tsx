@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 
 const METHODS = [
   { value: 'td_business', label: 'TD Business', ref: 'Check #' },
-  { value: 'td_joint',   label: 'TD Joint',    ref: 'Check #' },
+  { value: 'td_joint',      label: 'TD Joint',        ref: 'Check #' },
+  { value: 'jacob_personal', label: 'Jacob Personal', ref: 'Check #' },
   { value: 'cash',        label: 'Cash',         ref: null },
   { value: 'cashapp',     label: 'Cash App',     ref: 'Transaction ref' },
   { value: 'zelle',       label: 'Zelle',        ref: 'Transaction ref' },

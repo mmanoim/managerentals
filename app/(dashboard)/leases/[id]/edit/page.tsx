@@ -7,12 +7,13 @@ import { updateLease } from '@/app/actions/leases'
 import { deleteLedgerEntry } from '@/app/actions/payments'
 
 const METHOD_LABELS: Record<string, string> = {
-  td_business: 'TD Business', td_joint: 'TD Joint', cash: 'Cash', cashapp: 'Cash App', zelle: 'Zelle', venmo: 'Venmo',
+  td_business: 'TD Business', td_joint: 'TD Joint', jacob_personal: 'Jacob Personal', cash: 'Cash', cashapp: 'Cash App', zelle: 'Zelle', venmo: 'Venmo',
 }
 const METHOD_COLORS: Record<string, string> = {
   td_business: 'bg-blue-100 text-blue-700',
-  td_joint:    'bg-indigo-100 text-indigo-700',
-  cash:        'bg-green-100 text-green-700',
+  td_joint:      'bg-indigo-100 text-indigo-700',
+  jacob_personal: 'bg-orange-100 text-orange-700',
+  cash:          'bg-green-100 text-green-700',
   cashapp:     'bg-lime-100 text-lime-700',
   zelle:       'bg-purple-100 text-purple-700',
   venmo:       'bg-sky-100 text-sky-700',

@@ -614,6 +614,7 @@ export type Database = {
         | "venmo"
         | "td_business"
         | "td_joint"
+        | "jacob_personal"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -750,6 +751,7 @@ export const Constants = {
         "venmo",
         "td_business",
         "td_joint",
+        "jacob_personal",
       ],
     },
   },
