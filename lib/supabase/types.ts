@@ -420,6 +420,53 @@ export type Database = {
         }
         Relationships: []
       }
+      property_insurance_policies: {
+        Row: {
+          company: string
+          created_at: string
+          effective_date: string
+          expiration_date: string
+          id: string
+          is_active: boolean
+          notes: string | null
+          policy_number: string | null
+          premium: number | null
+          property_id: string
+        }
+        Insert: {
+          company: string
+          created_at?: string
+          effective_date: string
+          expiration_date: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          property_id: string
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          effective_date?: string
+          expiration_date?: string
+          id?: string
+          is_active?: boolean
+          notes?: string | null
+          policy_number?: string | null
+          premium?: number | null
+          property_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "property_insurance_policies_property_id_fkey"
+            columns: ["property_id"]
+            isOneToOne: false
+            referencedRelation: "properties"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reconciliations: {
         Row: {
           account_transaction_id: string | null
