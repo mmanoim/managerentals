@@ -3,10 +3,11 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 
 const METHOD_LABELS: Record<string, string> = {
-  td_business: 'TD Business', cash: 'Cash', cashapp: 'Cash App', zelle: 'Zelle', venmo: 'Venmo',
+  td_business: 'TD Business', td_joint: 'TD Joint', cash: 'Cash', cashapp: 'Cash App', zelle: 'Zelle', venmo: 'Venmo',
 }
 const METHOD_COLORS: Record<string, string> = {
   td_business: 'bg-blue-100 text-blue-700',
+  td_joint:    'bg-indigo-100 text-indigo-700',
   cash:    'bg-green-100 text-green-700',
   cashapp: 'bg-lime-100 text-lime-700',
   zelle:   'bg-purple-100 text-purple-700',
