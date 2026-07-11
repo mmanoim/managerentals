@@ -6,6 +6,8 @@ import { useState } from 'react'
 interface Props {
   properties: { id: string; address: string }[]
   units: { id: string; unit_label: string; property_id: string }[]
+  dateFrom?: string
+  dateTo?: string
 }
 
 const METHODS = [
@@ -20,7 +22,7 @@ const METHODS = [
 
 const sel = 'px-3 py-2 rounded-lg border border-slate-300 bg-white text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent'
 
-export default function PaymentsFilter({ properties, units }: Props) {
+export default function PaymentsFilter({ properties, units, dateFrom, dateTo }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -28,17 +30,21 @@ export default function PaymentsFilter({ properties, units }: Props) {
   const [propertyId, setPropertyId] = useState(searchParams.get('propertyId') ?? '')
   const [unitId, setUnitId]         = useState(searchParams.get('unitId') ?? '')
   const [method, setMethod]         = useState(searchParams.get('method') ?? '')
+  const [dateFromVal, setDateFrom]  = useState(searchParams.get('date_from') ?? '')
+  const [dateToVal, setDateTo]      = useState(searchParams.get('date_to') ?? '')
 
   const availableUnits = propertyId
     ? units.filter(u => u.property_id === propertyId)
     : units
 
-  function push(overrides: { propertyId?: string; unitId?: string; method?: string }) {
-    const next = { propertyId, unitId, method, ...overrides }
+  function push(overrides: { propertyId?: string; unitId?: string; method?: string; date_from?: string; date_to?: string }) {
+    const next = { propertyId, unitId, method, date_from: dateFromVal, date_to: dateToVal, ...overrides }
     const params = new URLSearchParams()
-    if (next.propertyId) params.set('propertyId', next.propertyId)
-    if (next.unitId)     params.set('unitId', next.unitId)
-    if (next.method)     params.set('method', next.method)
+    if (next.propertyId)  params.set('propertyId', next.propertyId)
+    if (next.unitId)      params.set('unitId', next.unitId)
+    if (next.method)      params.set('method', next.method)
+    if (next.date_from)   params.set('date_from', next.date_from)
+    if (next.date_to)     params.set('date_to', next.date_to)
     const qs = params.toString()
     router.push(qs ? `${pathname}?${qs}` : pathname)
   }
@@ -60,11 +66,11 @@ export default function PaymentsFilter({ properties, units }: Props) {
   }
 
   function clearAll() {
-    setPropertyId(''); setUnitId(''); setMethod('')
+    setPropertyId(''); setUnitId(''); setMethod(''); setDateFrom(''); setDateTo('')
     router.push(pathname)
   }
 
-  const hasFilters = !!(propertyId || unitId || method)
+  const hasFilters = !!(propertyId || unitId || method || dateFromVal || dateToVal)
 
   return (
     <div className="flex flex-wrap items-center gap-2 mb-6">
@@ -89,6 +95,23 @@ export default function PaymentsFilter({ properties, units }: Props) {
           <option key={m.value} value={m.value}>{m.label}</option>
         ))}
       </select>
+
+      <input
+        type="date"
+        value={dateFromVal}
+        onChange={e => { setDateFrom(e.target.value); push({ date_from: e.target.value }) }}
+        className={sel}
+        placeholder="From"
+        title="From date"
+      />
+      <input
+        type="date"
+        value={dateToVal}
+        onChange={e => { setDateTo(e.target.value); push({ date_to: e.target.value }) }}
+        className={sel}
+        placeholder="To"
+        title="To date"
+      />
 
       {hasFilters && (
         <button onClick={clearAll}

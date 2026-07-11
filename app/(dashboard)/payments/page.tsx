@@ -30,9 +30,9 @@ function primaryTenantName(leaseTenants: any[]) {
 export default async function PaymentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ propertyId?: string; unitId?: string; method?: string }>
+  searchParams: Promise<{ propertyId?: string; unitId?: string; method?: string; date_from?: string; date_to?: string }>
 }) {
-  const { propertyId, unitId, method } = await searchParams
+  const { propertyId, unitId, method, date_from, date_to } = await searchParams
   const supabase = await createClient()
 
   const [{ data: entries }, { data: properties }, { data: units }] = await Promise.all([
@@ -76,34 +76,43 @@ export default async function PaymentsPage({
       (e.ledger_payment_parts as any[])?.some((p: any) => p.method === method)
     )
   }
+  if (date_from) filtered = filtered.filter(e => e.entry_date >= date_from)
+  if (date_to)   filtered = filtered.filter(e => e.entry_date <= date_to)
 
   const totalAmount = filtered.reduce((s, e) => s + Number(e.amount), 0)
 
   return (
     <div>
-      <div className="flex items-baseline justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Payments</h1>
           <p className="text-slate-500 mt-0.5">
             {filtered.length} payment{filtered.length !== 1 ? 's' : ''}
-            {filtered.length > 0 && (
-              <> · <span className="font-medium text-slate-700">
-                ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })} total
-              </span></>
-            )}
-            {(propertyId || unitId || method) && ' (filtered)'}
+            {(propertyId || unitId || method || date_from || date_to) && ' (filtered)'}
           </p>
         </div>
-        <Link href="/payments/new"
-          className="text-sm font-medium text-white px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors flex-shrink-0">
-          + Record payment
-        </Link>
+        <div className="flex items-center gap-6 flex-shrink-0">
+          {filtered.length > 0 && (
+            <div className="text-right">
+              <p className="text-xs text-slate-400 uppercase tracking-wide font-medium">Total</p>
+              <p className="text-2xl font-bold tabular-nums text-slate-900 mt-0.5">
+                ${totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </p>
+            </div>
+          )}
+          <Link href="/payments/new"
+            className="text-sm font-medium text-white px-4 py-2 rounded-lg bg-indigo-600 hover:bg-indigo-700 transition-colors">
+            + Record payment
+          </Link>
+        </div>
       </div>
 
       <Suspense>
         <PaymentsFilter
           properties={properties ?? []}
           units={units ?? []}
+          dateFrom={date_from}
+          dateTo={date_to}
         />
       </Suspense>
 
