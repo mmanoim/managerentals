@@ -24,20 +24,24 @@ export default async function LeasesPage({
       unit:units(unit_label, property:properties(id, address, city, state)),
       lease_tenants(is_primary, tenant:tenants(first_name, last_name))
     `)
-    .order('renewal_date', { ascending: true })
-
   if (!showAll) {
     query = query.eq('status', 'active')
-  } else {
-    query = query.order('status', { ascending: true })
   }
 
-  const [{ data: leases }, { data: balanceRows }] = await Promise.all([
+  const [{ data: leasesRaw }, { data: balanceRows }] = await Promise.all([
     query,
     supabase
       .from('lease_ledger_entries')
       .select('lease_id, type, amount'),
   ])
+
+  // Sort by property address, then unit label
+  const leases = (leasesRaw ?? []).slice().sort((a: any, b: any) => {
+    const addrA = (a.unit?.property?.address ?? '').toLowerCase()
+    const addrB = (b.unit?.property?.address ?? '').toLowerCase()
+    if (addrA !== addrB) return addrA.localeCompare(addrB)
+    return (a.unit?.unit_label ?? '').localeCompare(b.unit?.unit_label ?? '')
+  })
 
   // Compute balance per lease: charges − payments (positive = owes, negative = credit)
   const balanceMap = new Map<string, number>()
