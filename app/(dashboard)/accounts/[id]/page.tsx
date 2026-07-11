@@ -249,6 +249,27 @@ export default async function AccountRegisterPage({
         )
       })()}
 
+      {/* Selection summary */}
+      {displayRows.length > 0 && (() => {
+        const selectionSum = displayRows.reduce((s, tx) => s + Number(tx.amount), 0)
+        const inflows  = displayRows.filter(tx => Number(tx.amount) > 0).reduce((s, tx) => s + Number(tx.amount), 0)
+        const outflows = displayRows.filter(tx => Number(tx.amount) < 0).reduce((s, tx) => s + Number(tx.amount), 0)
+        return (
+          <div className="flex items-center gap-6 px-4 py-2.5 mb-3 bg-white border border-slate-200 rounded-xl text-sm">
+            <span className="text-slate-500">
+              <span className="font-semibold text-slate-800">{displayRows.length}</span> transaction{displayRows.length !== 1 ? 's' : ''}
+              {hasFilters && withBalance.length !== displayRows.length && (
+                <span className="text-slate-400"> of {withBalance.length}</span>
+              )}
+            </span>
+            <span className="text-slate-300">|</span>
+            <span className="text-slate-500">Net <span className={`font-semibold tabular-nums ${selectionSum >= 0 ? 'text-slate-800' : 'text-red-600'}`}>{fmtCurrency(selectionSum)}</span></span>
+            {inflows > 0 && <span className="text-slate-500">In <span className="font-semibold tabular-nums text-green-700">{fmtCurrency(inflows)}</span></span>}
+            {outflows < 0 && <span className="text-slate-500">Out <span className="font-semibold tabular-nums text-red-600">{fmtCurrency(Math.abs(outflows))}</span></span>}
+          </div>
+        )
+      })()}
+
       {/* Register table */}
       {displayRows.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-slate-200">
