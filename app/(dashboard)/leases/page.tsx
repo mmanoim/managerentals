@@ -32,7 +32,19 @@ export default async function LeasesPage({
     query = query.order('status', { ascending: true })
   }
 
-  const { data: leases } = await query
+  const [{ data: leases }, { data: balanceRows }] = await Promise.all([
+    query,
+    supabase
+      .from('lease_ledger_entries')
+      .select('lease_id, type, amount'),
+  ])
+
+  // Compute balance per lease: charges − payments (positive = owes, negative = credit)
+  const balanceMap = new Map<string, number>()
+  for (const row of balanceRows ?? []) {
+    const delta = row.type === 'charge' ? Number(row.amount) : -Number(row.amount)
+    balanceMap.set(row.lease_id, (balanceMap.get(row.lease_id) ?? 0) + delta)
+  }
 
   function tenantName(lease: any) {
     const sorted = [...(lease.lease_tenants ?? [])].sort(
@@ -82,6 +94,7 @@ export default async function LeasesPage({
                 <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Rent/mo</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Lease end</th>
                 <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Renewal</th>
+                <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Balance</th>
                 {showAll && (
                   <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide px-6 py-3">Status</th>
                 )}
@@ -92,6 +105,7 @@ export default async function LeasesPage({
               {leases.map((lease: any) => {
                 const unit = lease.unit as any
                 const property = unit?.property as any
+                const balance = balanceMap.get(lease.id) ?? 0
                 return (
                   <tr key={lease.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-6 py-4 font-medium text-slate-900 text-sm">
@@ -121,6 +135,11 @@ export default async function LeasesPage({
                           {fmt(lease.renewal_date)}
                         </span>
                       ) : '—'}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-right font-semibold tabular-nums">
+                      <span className={balance > 0 ? 'text-red-600' : balance < 0 ? 'text-green-600' : 'text-slate-400'}>
+                        {balance > 0 ? '+' : ''}${Math.abs(balance).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </span>
                     </td>
                     {showAll && (
                       <td className="px-6 py-4">
