@@ -72,8 +72,36 @@ export default function PaymentsFilter({ properties, units, dateFrom, dateTo }: 
 
   const hasFilters = !!(propertyId || unitId || method || dateFromVal || dateToVal)
 
+  const currentYear = new Date().getFullYear()
+  const years = [currentYear - 3, currentYear - 2, currentYear - 1, currentYear]
+
+  function isActiveYear(y: number) {
+    return dateFromVal === `${y}-01-01` && dateToVal === `${y}-12-31`
+  }
+
+  function handleYear(y: number) {
+    const from = `${y}-01-01`
+    const to   = `${y}-12-31`
+    setDateFrom(from)
+    setDateTo(to)
+    push({ date_from: from, date_to: to })
+  }
+
   return (
-    <div className="flex flex-wrap items-center gap-2 mb-6">
+    <div className="bg-white border border-slate-200 rounded-xl px-5 pt-3 pb-3.5 mb-6 space-y-3">
+      <div className="flex items-center gap-2 flex-wrap">
+        {years.map(y => (
+          <button key={y} type="button" onClick={() => handleYear(y)}
+            className={`px-3.5 py-1 rounded-full text-sm font-medium transition-colors ${
+              isActiveYear(y)
+                ? 'bg-indigo-600 text-white'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}>
+            {y}
+          </button>
+        ))}
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
       <select value={propertyId} onChange={e => handleProperty(e.target.value)} className={sel}>
         <option value="">All properties</option>
         {properties.map(p => (
@@ -119,6 +147,7 @@ export default function PaymentsFilter({ properties, units, dateFrom, dateTo }: 
           Clear filters ×
         </button>
       )}
+      </div>
     </div>
   )
 }
