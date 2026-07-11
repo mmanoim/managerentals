@@ -24,10 +24,10 @@ export default async function AccountRegisterPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ date_from?: string; date_to?: string; reconciled?: string; category_id?: string; amount_min?: string; amount_max?: string; description?: string }>
+  searchParams: Promise<{ date_from?: string; date_to?: string; reconciled?: string; category_id?: string; amount_min?: string; amount_max?: string; description?: string; linked?: string }>
 }) {
   const { id } = await params
-  const { date_from, date_to, reconciled, category_id, amount_min, amount_max, description } = await searchParams
+  const { date_from, date_to, reconciled, category_id, amount_min, amount_max, description, linked } = await searchParams
   const supabase = await createClient()
 
   const [{ data: account }, { data: allTx }, { data: categories }] = await Promise.all([
@@ -85,11 +85,14 @@ export default async function AccountRegisterPage({
     const q = description.toLowerCase()
     filtered = filtered.filter(tx => tx.description?.toLowerCase().includes(q))
   }
+  if (linked === 'account') filtered = filtered.filter(tx => !!tx.transfer_pair_id)
+  if (linked === 'lease')   filtered = filtered.filter(tx => !!tx.source_payment_part_id)
+  if (linked === 'unlinked') filtered = filtered.filter(tx => !tx.transfer_pair_id && !tx.source_payment_part_id)
 
   // Newest first for display
   const displayRows = [...filtered].reverse()
 
-  const hasFilters = date_from || date_to || reconciled || category_id || amount_min || amount_max || description
+  const hasFilters = date_from || date_to || reconciled || category_id || amount_min || amount_max || description || linked
 
   return (
     <div>
@@ -151,6 +154,7 @@ export default async function AccountRegisterPage({
           if (amount_min)  p.set('amount_min', amount_min)
           if (amount_max)  p.set('amount_max', amount_max)
           if (description) p.set('description', description)
+          if (linked)      p.set('linked', linked)
           return `/accounts/${id}?${p.toString()}`
         }
         const isActiveYear = (y: number) => date_from === `${y}-01-01` && date_to === `${y}-12-31`
@@ -204,6 +208,16 @@ export default async function AccountRegisterPage({
             <option value="">All</option>
             <option value="yes">Reconciled</option>
             <option value="no">Unreconciled</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-500 mb-1">Linked to</label>
+          <select name="linked" defaultValue={linked ?? ''}
+            className="px-3 py-1.5 rounded-lg border border-slate-300 text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+            <option value="">All</option>
+            <option value="account">Another account</option>
+            <option value="lease">A lease</option>
+            <option value="unlinked">Not linked</option>
           </select>
         </div>
         <div>
